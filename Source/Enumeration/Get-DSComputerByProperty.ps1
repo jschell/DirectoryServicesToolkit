@@ -51,7 +51,7 @@ Returns enabled computers with no logon activity in the past 90 days.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
@@ -82,10 +82,142 @@ Changelog:
 
     Begin
     {
-        throw [System.NotImplementedException]'Get-DSComputerByProperty is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying domain: $DomainName for computer objects"
+
+        $ldapPath = if ($SearchBase)
+        {
+            "LDAP://$SearchBase"
+        }
+        else
+        {
+            "LDAP://$DomainName"
+        }
+
+        # ── Build LDAP filter dynamically ────────────────────────────────────
+
+        $filterParts = @('(objectCategory=computer)')
+
+        if ($OperatingSystem)
+        {
+            $filterParts += "(operatingSystem=$OperatingSystem)"
+        }
+
+        if ($null -ne $Enabled)
+        {
+            if ($Enabled -eq $true)
+            {
+                $filterParts += '(!(userAccountControl:1.2.840.113556.1.4.803:=2))'
+            }
+            else
+            {
+                $filterParts += '(userAccountControl:1.2.840.113556.1.4.803:=2)'
+            }
+        }
+
+        if ($InactiveDays -gt 0)
+        {
+            $threshold     = (Get-Date).AddDays(-$InactiveDays).ToFileTime()
+            $filterParts  += "(lastLogonTimestamp<=$threshold)"
+        }
+
+        $ldapFilter = if ($filterParts.Count -eq 1)
+        {
+            $filterParts[0]
+        }
+        else
+        {
+            '(&{0})' -f ($filterParts -join '')
+        }
+
+        Write-Verbose "LDAP filter: $ldapFilter"
+
+        $properties = @(
+            'name'
+            'sAMAccountName'
+            'distinguishedName'
+            'operatingSystem'
+            'operatingSystemVersion'
+            'userAccountControl'
+            'lastLogonTimestamp'
+            'pwdLastSet'
+            'dNSHostName'
+        )
     }
 
-    Process {}
+    Process
+    {
+        $queryResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $ldapFilter `
+            -Properties $properties -SizeLimit $SizeLimit
+
+        Write-Verbose "Processing $($queryResults.Count) computer objects"
+
+        $now = Get-Date
+
+        foreach ($obj in $queryResults)
+        {
+            $uac = [int]$obj['useraccountcontrol'][0]
+
+            $pwdLastSetRaw = $obj['pwdlastset'][0]
+            $passwordLastSet = if ($null -ne $pwdLastSetRaw -and [long]$pwdLastSetRaw -gt 0)
+            {
+                [DateTime]::FromFileTime([long]$pwdLastSetRaw)
+            }
+            else
+            {
+                $null
+            }
+
+            $lastLogonRaw = $obj['lastlogontimestamp'][0]
+            $lastLogon = if ($null -ne $lastLogonRaw -and [long]$lastLogonRaw -gt 0)
+            {
+                [DateTime]::FromFileTime([long]$lastLogonRaw)
+            }
+            else
+            {
+                $null
+            }
+
+            $daysSinceLastLogon = if ($null -ne $lastLogon)
+            {
+                [int]($now - $lastLogon).TotalDays
+            }
+            else
+            {
+                $null
+            }
+
+            $osRaw      = $obj['operatingsystem']
+            $osVerRaw   = $obj['operatingsystemversion']
+            $dnsRaw     = $obj['dnshostname']
+
+            [PSCustomObject]@{
+                Name                   = [string]$obj['name'][0]
+                SamAccountName         = [string]$obj['samaccountname'][0]
+                DistinguishedName      = [string]$obj['distinguishedname'][0]
+                DNSHostName            = if ($dnsRaw -and $dnsRaw.Count -gt 0) { [string]$dnsRaw[0] } else { $null }
+                OperatingSystem        = if ($osRaw -and $osRaw.Count -gt 0) { [string]$osRaw[0] } else { $null }
+                OperatingSystemVersion = if ($osVerRaw -and $osVerRaw.Count -gt 0) { [string]$osVerRaw[0] } else { $null }
+                Enabled                = -not [bool]($uac -band 2)
+                PasswordLastSet        = $passwordLastSet
+                LastLogonTimestamp     = $lastLogon
+                DaysSinceLastLogon     = $daysSinceLastLogon
+            }
+        }
+    }
 
     End {}
 }
