@@ -24,12 +24,15 @@ Domain connectivity is required for most functions. Read access to the domain pa
 git clone https://github.com/jschell/DirectoryServicesToolkit.git
 cd DirectoryServicesToolkit
 
-# Build the module
-Invoke-Build Build
+# Development — import directly from source (no build step needed)
+Import-Module ./Source/DirectoryServicesToolkit.psm1 -Force
 
-# Import from output
+# Distribution — package to Output/ then import from the generated manifest
+Invoke-Build Build
 Import-Module ./Output/DirectoryServicesToolkit.psd1 -Force
 ```
+
+The build step flattens all function files into `Output/`, generates a dot-sourcing `.psm1`, and produces a `.psd1` manifest with an explicit `FunctionsToExport` list. It does not concatenate source into a single file.
 
 ---
 
@@ -146,7 +149,7 @@ All tasks are defined in `build.ps1` and invoked via `Invoke-Build` (alias `ib`)
 Invoke-Build Test      # Run all Pester unit tests
 Invoke-Build Lint      # Run PSScriptAnalyzer
 Invoke-Build LintFix   # Run PSScriptAnalyzer with auto-fix
-Invoke-Build Build     # Compile manifest and copy to Output/
+Invoke-Build Build     # Flatten .ps1 files to Output/, generate .psm1 and .psd1
 Invoke-Build CI        # Lint → Test → Build
 Invoke-Build Docs      # Generate markdown docs from comment-based help
 Invoke-Build Clean     # Remove build artifacts
