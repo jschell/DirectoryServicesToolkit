@@ -14,8 +14,9 @@ membership resolution:
   - Administrators (built-in)
   - Protected Users
 
-Recursive resolution expands nested group membership so that all effective
-principals with elevated access are surfaced, not just direct members.
+Recursive resolution uses the LDAP_MATCHING_RULE_IN_CHAIN OID
+(1.2.840.113556.1.4.1941) to expand nested group membership in a single
+query per group, surfacing all effective principals with elevated access.
 
 Requires read access to the domain partition.
 
@@ -44,7 +45,7 @@ Returns members of just Domain Admins and Enterprise Admins.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
@@ -67,10 +68,133 @@ Changelog:
 
     Begin
     {
-        throw [System.NotImplementedException]'Get-DSAdminAccounts is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying domain: $DomainName for privileged group members"
+
+        $ldapPath   = "LDAP://$DomainName"
+        $properties = @(
+            'distinguishedName'
+            'sAMAccountName'
+            'userAccountControl'
+            'pwdLastSet'
+            'lastLogonTimestamp'
+            'memberOf'
+        )
+
+        # ── Resolve each group name to a DN ──────────────────────────────────
+
+        $groupDnMap = @{}  # groupName → DN
+
+        foreach ($groupName in $Groups)
+        {
+            $groupFilter = "(&(objectClass=group)(sAMAccountName=$groupName))"
+            $groupResults = Invoke-DSDirectorySearch -LdapPath $ldapPath `
+                -Filter $groupFilter -Properties @('distinguishedName')
+
+            if ($groupResults.Count -gt 0)
+            {
+                $groupDnMap[$groupName] = [string]$groupResults[0]['distinguishedname'][0]
+                Write-Verbose "Resolved group '$groupName' -> $($groupDnMap[$groupName])"
+            }
+            else
+            {
+                Write-Verbose "Group '$groupName' not found in domain '$DomainName' — skipping"
+            }
+        }
+
+        # ── Accumulate results — keyed by DN for deduplication ───────────────
+
+        # $accountMap[dn] = @{ obj = hashtable; groups = [List[string]] }
+        $accountMap = [System.Collections.Generic.Dictionary[string, object]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
     }
 
-    Process {}
+    Process
+    {
+        foreach ($groupName in $groupDnMap.Keys)
+        {
+            $groupDn     = $groupDnMap[$groupName]
+            $memberFilter = "(&(objectClass=user)(memberOf:1.2.840.113556.1.4.1941:=$groupDn))"
 
-    End {}
+            Write-Verbose "Querying transitive members of '$groupName'"
+
+            $members = Invoke-DSDirectorySearch -LdapPath $ldapPath `
+                -Filter $memberFilter -Properties $properties
+
+            foreach ($obj in $members)
+            {
+                $dn = [string]$obj['distinguishedname'][0]
+
+                if ($accountMap.ContainsKey($dn))
+                {
+                    # Already seen — append to group list
+                    [void]$accountMap[$dn].Groups.Add($groupName)
+                }
+                else
+                {
+                    $entry = [PSCustomObject]@{
+                        Object = $obj
+                        Groups = [System.Collections.Generic.List[string]]::new()
+                    }
+                    [void]$entry.Groups.Add($groupName)
+                    $accountMap[$dn] = $entry
+                }
+            }
+        }
+    }
+
+    End
+    {
+        $now = Get-Date
+
+        foreach ($dn in $accountMap.Keys)
+        {
+            $entry = $accountMap[$dn]
+            $obj   = $entry.Object
+            $uac   = [int]$obj['useraccountcontrol'][0]
+
+            $pwdLastSetRaw = $obj['pwdlastset'][0]
+            $passwordLastSet = if ($null -ne $pwdLastSetRaw -and [long]$pwdLastSetRaw -gt 0)
+            {
+                [DateTime]::FromFileTime([long]$pwdLastSetRaw)
+            }
+            else
+            {
+                $null
+            }
+
+            $lastLogonRaw = $obj['lastlogontimestamp'][0]
+            $lastLogon = if ($null -ne $lastLogonRaw -and [long]$lastLogonRaw -gt 0)
+            {
+                [DateTime]::FromFileTime([long]$lastLogonRaw)
+            }
+            else
+            {
+                $null
+            }
+
+            [PSCustomObject]@{
+                SamAccountName    = [string]$obj['samaccountname'][0]
+                DistinguishedName = $dn
+                Enabled           = -not [bool]($uac -band 2)
+                PasswordLastSet   = $passwordLastSet
+                LastLogon         = $lastLogon
+                Groups            = @($entry.Groups)
+            }
+        }
+    }
 }

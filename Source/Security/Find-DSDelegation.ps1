@@ -30,8 +30,8 @@ The delegation type to enumerate: Unconstrained, Constrained, RBCD, or All.
 Defaults to All.
 
 .PARAMETER ExcludeComputerAccounts
-When specified, computer accounts (sAMAccountName ending in $) are excluded
-from results. Useful for focusing on user and service accounts.
+When specified, computer accounts are excluded from results. Useful for
+focusing on user and service accounts only.
 
 .EXAMPLE
 Find-DSDelegation -Domain 'contoso.com'
@@ -56,31 +56,196 @@ Returns constrained delegation configurations, excluding computer accounts.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     Param
     (
-        [Parameter()]
+        [Parameter(HelpMessage = 'DNS name of the target domain')]
         [ValidateNotNullOrEmpty()]
         [string]$Domain = $env:USERDNSDOMAIN,
 
-        [Parameter()]
+        [Parameter(HelpMessage = 'Delegation type to enumerate')]
         [ValidateSet('Unconstrained', 'Constrained', 'RBCD', 'All')]
         [string]$DelegationType = 'All',
 
-        [Parameter()]
+        [Parameter(HelpMessage = 'Exclude computer accounts from results')]
         [switch]$ExcludeComputerAccounts
     )
 
     Begin
     {
-        throw [System.NotImplementedException]'Find-DSDelegation is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying domain: $DomainName for delegation type: $DelegationType"
+
+        $ldapPath   = "LDAP://$DomainName"
+        $properties = @(
+            'distinguishedName'
+            'sAMAccountName'
+            'userAccountControl'
+            'msDS-AllowedToDelegateTo'
+            'msDS-AllowedToActOnBehalfOfOtherIdentity'
+            'objectClass'
+        )
+
+        $results = New-Object System.Collections.ArrayList
     }
 
-    Process {}
+    Process
+    {
+        # ── Unconstrained delegation ─────────────────────────────────────────
 
-    End {}
+        if ($DelegationType -eq 'All' -or $DelegationType -eq 'Unconstrained')
+        {
+            # Users with unconstrained delegation
+            $userFilter = '(&(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=524288)(!(cn=krbtgt)))'
+            Write-Verbose "Querying unconstrained delegation (users): $userFilter"
+
+            $userResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $userFilter -Properties $properties
+
+            foreach ($obj in $userResults)
+            {
+                $uac = [int]$obj['useraccountcontrol'][0]
+                [void]$results.Add(
+                    [PSCustomObject]@{
+                        SamAccountName     = [string]$obj['samaccountname'][0]
+                        DistinguishedName  = [string]$obj['distinguishedname'][0]
+                        DelegationType     = 'Unconstrained'
+                        ProtocolTransition = [bool]($uac -band 16777216)
+                        DelegationTarget   = $null
+                        RBCDTarget         = $null
+                        Enabled            = -not [bool]($uac -band 2)
+                        ObjectType         = 'User'
+                    }
+                )
+            }
+
+            # Computers with unconstrained delegation (skip if -ExcludeComputerAccounts)
+            if (-not $ExcludeComputerAccounts)
+            {
+                $compFilter = '(&(objectCategory=computer)(userAccountControl:1.2.840.113556.1.4.803:=524288))'
+                Write-Verbose "Querying unconstrained delegation (computers): $compFilter"
+
+                $compResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $compFilter -Properties $properties
+
+                foreach ($obj in $compResults)
+                {
+                    $uac = [int]$obj['useraccountcontrol'][0]
+                    [void]$results.Add(
+                        [PSCustomObject]@{
+                            SamAccountName     = [string]$obj['samaccountname'][0]
+                            DistinguishedName  = [string]$obj['distinguishedname'][0]
+                            DelegationType     = 'Unconstrained'
+                            ProtocolTransition = [bool]($uac -band 16777216)
+                            DelegationTarget   = $null
+                            RBCDTarget         = $null
+                            Enabled            = -not [bool]($uac -band 2)
+                            ObjectType         = 'Computer'
+                        }
+                    )
+                }
+            }
+        }
+
+        # ── Constrained delegation ───────────────────────────────────────────
+
+        if ($DelegationType -eq 'All' -or $DelegationType -eq 'Constrained')
+        {
+            $constrainedFilter = if ($ExcludeComputerAccounts)
+            {
+                '(&(objectClass=user)(msDS-AllowedToDelegateTo=*)(!(cn=krbtgt))(!(objectCategory=computer)))'
+            }
+            else
+            {
+                '(&(objectClass=user)(msDS-AllowedToDelegateTo=*)(!(cn=krbtgt)))'
+            }
+
+            Write-Verbose "Querying constrained delegation: $constrainedFilter"
+
+            $constrainedResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $constrainedFilter -Properties $properties
+
+            foreach ($obj in $constrainedResults)
+            {
+                $uac        = [int]$obj['useraccountcontrol'][0]
+                $targets    = @($obj['msds-allowedtodelegateto'])
+                $objectType = if ($obj['objectclass'] -contains 'computer') { 'Computer' } else { 'User' }
+
+                [void]$results.Add(
+                    [PSCustomObject]@{
+                        SamAccountName     = [string]$obj['samaccountname'][0]
+                        DistinguishedName  = [string]$obj['distinguishedname'][0]
+                        DelegationType     = 'Constrained'
+                        ProtocolTransition = [bool]($uac -band 16777216)
+                        DelegationTarget   = $targets
+                        RBCDTarget         = $null
+                        Enabled            = -not [bool]($uac -band 2)
+                        ObjectType         = $objectType
+                    }
+                )
+            }
+        }
+
+        # ── Resource-based constrained delegation (RBCD) ────────────────────
+
+        if (($DelegationType -eq 'All' -or $DelegationType -eq 'RBCD') -and -not $ExcludeComputerAccounts)
+        {
+            $rbcdFilter = '(&(objectCategory=computer)(msDS-AllowedToActOnBehalfOfOtherIdentity=*))'
+            Write-Verbose "Querying RBCD: $rbcdFilter"
+
+            $rbcdResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $rbcdFilter -Properties $properties
+
+            foreach ($obj in $rbcdResults)
+            {
+                $uac       = [int]$obj['useraccountcontrol'][0]
+                $rbcdBytes = $obj['msds-allowedtoactonbehalfofotheridentity'][0]
+                $rbcdSddl  = $null
+
+                if ($null -ne $rbcdBytes)
+                {
+                    try
+                    {
+                        $sd       = [System.Security.AccessControl.RawSecurityDescriptor]::new([byte[]]$rbcdBytes, 0)
+                        $rbcdSddl = $sd.GetSddlForm([System.Security.AccessControl.AccessControlSections]::Access)
+                    }
+                    catch
+                    {
+                        Write-Verbose "Could not parse RBCD descriptor for $($obj['samaccountname'][0]): $_"
+                    }
+                }
+
+                [void]$results.Add(
+                    [PSCustomObject]@{
+                        SamAccountName     = [string]$obj['samaccountname'][0]
+                        DistinguishedName  = [string]$obj['distinguishedname'][0]
+                        DelegationType     = 'RBCD'
+                        ProtocolTransition = $false
+                        DelegationTarget   = $null
+                        RBCDTarget         = $rbcdSddl
+                        Enabled            = -not [bool]($uac -band 2)
+                        ObjectType         = 'Computer'
+                    }
+                )
+            }
+        }
+    }
+
+    End
+    {
+        $results
+    }
 }

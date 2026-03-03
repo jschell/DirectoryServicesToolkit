@@ -11,7 +11,9 @@ increasing the window for offline attacks on captured hashes.
 
 Cross-referencing output with Find-DSKerberoastable results surfaces the
 highest-risk overlap — service accounts with SPNs that also have non-expiring
-passwords.
+passwords. Use 'Where-Object HasSPN' to filter to this subset.
+
+Results are sorted by PasswordAgeDays descending (oldest password first).
 
 Requires read access to the domain partition.
 
@@ -39,7 +41,7 @@ Returns all accounts (enabled and disabled) with non-expiring passwords.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
@@ -56,10 +58,90 @@ Changelog:
 
     Begin
     {
-        throw [System.NotImplementedException]'Find-DSPasswordNeverExpires is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying domain: $DomainName for DONT_EXPIRE_PASSWORD accounts"
+
+        # UAC bit 65536 (0x10000) = DONT_EXPIRE_PASSWORD
+        $filterParts = @(
+            '(objectClass=user)'
+            '(userAccountControl:1.2.840.113556.1.4.803:=65536)'
+        )
+
+        if (-not $IncludeDisabled)
+        {
+            $filterParts += '(!(userAccountControl:1.2.840.113556.1.4.803:=2))'
+        }
+
+        $ldapFilter = '(&{0})' -f ($filterParts -join '')
+        Write-Verbose "LDAP filter: $ldapFilter"
+
+        $ldapPath   = "LDAP://$DomainName"
+        $properties = @(
+            'distinguishedName'
+            'sAMAccountName'
+            'userAccountControl'
+            'pwdLastSet'
+            'servicePrincipalName'
+        )
+
+        $results = New-Object System.Collections.ArrayList
     }
 
-    Process {}
+    Process
+    {
+        $queryResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $ldapFilter -Properties $properties
 
-    End {}
+        $now = Get-Date
+
+        foreach ($obj in $queryResults)
+        {
+            $uac = [int]$obj['useraccountcontrol'][0]
+
+            $pwdLastSetRaw = $obj['pwdlastset'][0]
+            if ($null -ne $pwdLastSetRaw -and [long]$pwdLastSetRaw -gt 0)
+            {
+                $passwordLastSet = [DateTime]::FromFileTime([long]$pwdLastSetRaw)
+                $passwordAgeDays = [int]($now - $passwordLastSet).TotalDays
+            }
+            else
+            {
+                $passwordLastSet = $null
+                $passwordAgeDays = $null
+            }
+
+            $spnRaw = $obj['serviceprincipalname']
+            $hasSPN = ($null -ne $spnRaw -and $spnRaw.Count -gt 0 -and $null -ne $spnRaw[0])
+            $spns   = if ($hasSPN) { @($spnRaw) } else { @() }
+
+            [void]$results.Add(
+                [PSCustomObject]@{
+                    SamAccountName    = [string]$obj['samaccountname'][0]
+                    DistinguishedName = [string]$obj['distinguishedname'][0]
+                    Enabled           = -not [bool]($uac -band 2)
+                    PasswordLastSet   = $passwordLastSet
+                    PasswordAgeDays   = $passwordAgeDays
+                    HasSPN            = $hasSPN
+                    SPNs              = $spns
+                }
+            )
+        }
+    }
+
+    End
+    {
+        $results | Sort-Object -Property PasswordAgeDays -Descending
+    }
 }

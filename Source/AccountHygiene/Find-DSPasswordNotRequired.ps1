@@ -40,7 +40,7 @@ Returns all accounts (enabled and disabled) with PASSWD_NOTREQD set.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
@@ -57,10 +57,85 @@ Changelog:
 
     Begin
     {
-        throw [System.NotImplementedException]'Find-DSPasswordNotRequired is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying domain: $DomainName for PASSWD_NOTREQD accounts"
+
+        # UAC bit 32 (0x20) = PASSWD_NOTREQD
+        $filterParts = @(
+            '(objectClass=user)'
+            '(userAccountControl:1.2.840.113556.1.4.803:=32)'
+        )
+
+        if (-not $IncludeDisabled)
+        {
+            $filterParts += '(!(userAccountControl:1.2.840.113556.1.4.803:=2))'
+        }
+
+        $ldapFilter = '(&{0})' -f ($filterParts -join '')
+        Write-Verbose "LDAP filter: $ldapFilter"
+
+        $ldapPath   = "LDAP://$DomainName"
+        $properties = @(
+            'distinguishedName'
+            'sAMAccountName'
+            'userAccountControl'
+            'pwdLastSet'
+            'memberOf'
+        )
+
+        $results = New-Object System.Collections.ArrayList
     }
 
-    Process {}
+    Process
+    {
+        $queryResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $ldapFilter -Properties $properties
 
-    End {}
+        foreach ($obj in $queryResults)
+        {
+            $uac = [int]$obj['useraccountcontrol'][0]
+
+            $pwdLastSetRaw = $obj['pwdlastset'][0]
+            $passwordLastSet = if ($null -ne $pwdLastSetRaw -and [long]$pwdLastSetRaw -gt 0)
+            {
+                [DateTime]::FromFileTime([long]$pwdLastSetRaw)
+            }
+            else
+            {
+                $null
+            }
+
+            [void]$results.Add(
+                [PSCustomObject]@{
+                    SamAccountName    = [string]$obj['samaccountname'][0]
+                    DistinguishedName = [string]$obj['distinguishedname'][0]
+                    Enabled           = -not [bool]($uac -band 2)
+                    PasswordLastSet   = $passwordLastSet
+                    PasswordNeverSet  = ($null -eq $passwordLastSet)
+                }
+            )
+        }
+    }
+
+    End
+    {
+        if ($results.Count -gt 10)
+        {
+            Write-Warning "$($results.Count) accounts found with PASSWD_NOTREQD set — this may indicate a bulk provisioning hygiene issue."
+        }
+
+        $results
+    }
 }
