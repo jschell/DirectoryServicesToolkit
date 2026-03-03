@@ -11,7 +11,7 @@ Common tasks:
   Invoke-Build Test     - Run all Pester tests
   Invoke-Build Lint     - Run PSScriptAnalyzer
   Invoke-Build LintFix  - Run PSScriptAnalyzer with auto-fix
-  Invoke-Build Build    - Compile module to Output/
+  Invoke-Build Build    - Flatten .ps1 files to Output/, generate .psm1 and .psd1
   Invoke-Build Docs     - Generate platyPS markdown docs
   Invoke-Build CI       - Full pipeline: Lint -> Test -> Build
   Invoke-Build Clean    - Remove build artifacts
