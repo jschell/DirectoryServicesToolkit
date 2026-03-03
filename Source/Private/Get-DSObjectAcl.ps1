@@ -42,7 +42,7 @@ Changelog:
         if ($null -eq $acl)
         {
             Write-Verbose "No ObjectSecurity on: $LdapPath"
-            return , [PSCustomObject[]]$aceList
+            return [PSCustomObject[]]$aceList
         }
 
         foreach ($ace in $acl.Access)
@@ -68,5 +68,5 @@ Changelog:
         if ($null -ne $entry) { $entry.Dispose() }
     }
 
-    , [PSCustomObject[]]$aceList
+    [PSCustomObject[]]$aceList
 }

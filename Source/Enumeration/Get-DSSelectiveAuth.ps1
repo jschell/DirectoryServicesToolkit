@@ -59,8 +59,9 @@ ChangeLog
 
 
     [CmdletBinding()]
+    [OutputType([PSObject])]
     Param
-    (  
+    (
         $Domain = $env:UserDomain,
         
         [ValidateRange(0,1000)]

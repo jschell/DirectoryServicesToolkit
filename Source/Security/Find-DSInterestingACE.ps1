@@ -69,7 +69,7 @@ Changelog:
 #>
 
     [CmdletBinding()]
-    [OutputType([PSCustomObject])]
+    [OutputType([PSCustomObject[]])]
     Param
     (
         [Parameter(HelpMessage = 'DNS name of the target domain')]
@@ -223,7 +223,10 @@ Changelog:
                         $ntAccount = New-Object System.Security.Principal.NTAccount($identityRef)
                         $aceSid    = $ntAccount.Translate([System.Security.Principal.SecurityIdentifier]).ToString()
                     }
-                    catch { }
+                    catch
+                    {
+                        Write-Verbose "Could not resolve SID for '$identityRef': $_"
+                    }
 
                     if ($aceSid -and $script:AdminSids.Contains($aceSid)) { continue }
                 }
@@ -251,7 +254,7 @@ Changelog:
 
     End
     {
-        $results
+        [PSCustomObject[]]$results
     }
 }
 

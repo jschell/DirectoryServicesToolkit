@@ -199,7 +199,7 @@ about_comment_based_help
         }
         else 
         {
-            $Target = "GC://$($DomainEntry.Name):3268"    
+            $TargetSearch = "GC://$($DomainEntry.Name):3268"
         }
         $DomainEntry.Dispose()
 
@@ -217,11 +217,10 @@ about_comment_based_help
     Process
     {
         $UsersFound = @()
-        $MissingUsers = @()
 
         foreach($User in $UserName)
         {
-            $adsiTarget = [adsi]$Target
+            $adsiTarget = [adsi]$TargetSearch
             $Searcher = [adsisearcher]($adsiTarget)
             $ldapFilter = "(&(objectClass=user)($PropertyToSearch=$User))"
             $Searcher.Filter = $ldapFilter
@@ -257,7 +256,6 @@ about_comment_based_help
             }    
             else
             {
-                $MissingUsers += @( $User )
                 Write-Warning "Could not find $($User)"
             }
             $Searcher.Dispose()

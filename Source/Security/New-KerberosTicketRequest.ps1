@@ -17,32 +17,35 @@ function New-KerberosTicketRequest
 #>    
 
 
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     Param
     (
         [string]
         $Server,
-        
+
         [string]
         $SPN = 'host'
     )
-    
+
     $target = "$($SPN)/$($Server)"
-    
-    Try
+
+    if ($PSCmdlet.ShouldProcess($target, 'Request Kerberos service ticket'))
     {
-        $ticket = [System.IdentityModel.Tokens.KerberosRequestorSecurityToken]::new($target)
-    }
-    Catch
-    {
-        if( $($Error.Exception.InnerException.InnerException.InnerException) -like "*The specified target is unknown or unreachable")
+        Try
         {
-            Write-Error "The specified target is unknown or unreachable"
+            $ticket = [System.IdentityModel.Tokens.KerberosRequestorSecurityToken]::new($target)
         }
-        else
+        Catch
         {
-            Write-Error $_
+            if( $($Error.Exception.InnerException.InnerException.InnerException) -like "*The specified target is unknown or unreachable")
+            {
+                Write-Error "The specified target is unknown or unreachable"
+            }
+            else
+            {
+                Write-Error $_
+            }
         }
+        $ticket
     }
-    $ticket
 }

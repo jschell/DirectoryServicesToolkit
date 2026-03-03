@@ -41,6 +41,7 @@ https://gist.github.com/jschell/f34321ec9c73e89b52c90c899bf680c4
 
 
     [CmdletBinding()]
+    [OutputType([PSObject])]
     Param
     (
         [Parameter( Mandatory = $False )]

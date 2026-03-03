@@ -83,7 +83,7 @@ Changelog:
             return
         }
 
-        Write-Verbose "Querying PDC Emulator: $PdcEmulator for DNS zone security"
+        Write-Verbose "Querying DNS zone security in domain '$DomainName' via PDC Emulator: $PdcEmulator"
 
         # ZoneType integer → human-readable name
         $zoneTypeMap = @{

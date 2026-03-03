@@ -42,7 +42,7 @@ Changelog:
 #>
 
     [CmdletBinding()]
-    [OutputType([PSCustomObject])]
+    [OutputType([PSCustomObject[]])]
     Param
     (
         [Parameter(HelpMessage = 'DNS name of the target domain')]
@@ -129,6 +129,6 @@ Changelog:
 
     End
     {
-        $results
+        [PSCustomObject[]]$results
     }
 }

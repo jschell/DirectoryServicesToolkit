@@ -159,8 +159,6 @@ Changelog:
 
     End
     {
-        $now = Get-Date
-
         foreach ($dn in $accountMap.Keys)
         {
             $entry = $accountMap[$dn]
