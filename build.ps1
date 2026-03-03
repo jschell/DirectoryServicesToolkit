@@ -11,7 +11,7 @@ Common tasks:
   Invoke-Build Test     - Run all Pester tests
   Invoke-Build Lint     - Run PSScriptAnalyzer
   Invoke-Build LintFix  - Run PSScriptAnalyzer with auto-fix
-  Invoke-Build Build    - Flatten .ps1 files to Output/, generate .psm1 and .psd1
+  Invoke-Build Build    - Concatenate all .ps1 files into a single .psm1, generate .psd1
   Invoke-Build Docs     - Generate platyPS markdown docs
   Invoke-Build CI       - Full pipeline: Lint -> Test -> Build
   Invoke-Build Clean    - Remove build artifacts
@@ -28,12 +28,29 @@ $AnalyzerSettings = "$PSScriptRoot/PSScriptAnalyzerSettings.psd1"
 
 # ── Helper ──────────────────────────────────────────────────────────────────
 
+$script:PublicFolderOrder = @(
+    'Enumeration'
+    'Security'
+    'AccountHygiene'
+    'Trusts'
+    'DomainControllers'
+    'DNS'
+    'Reporting'
+    'Utilities'
+)
+
 function Get-PublicFunctions
 {
-    Get-ChildItem -Path $SourcePath -Recurse -Filter '*.ps1' |
-        Where-Object { $_.DirectoryName -notmatch '\\Private$' -and
-                       $_.DirectoryName -notmatch '/Private$' } |
-        ForEach-Object { $_.BaseName }
+    foreach ($folder in $script:PublicFolderOrder)
+    {
+        $folderPath = Join-Path $SourcePath $folder
+        if (Test-Path $folderPath)
+        {
+            Get-ChildItem -Path $folderPath -Filter '*.ps1' |
+                Sort-Object Name |
+                ForEach-Object { $_.BaseName }
+        }
+    }
 }
 
 # ── Tasks ────────────────────────────────────────────────────────────────────
@@ -49,28 +66,32 @@ task Clean {
 task Build Clean, {
     $null = New-Item -ItemType Directory -Path $OutputPath -Force
 
-    # Concatenate all ps1 files into the root psm1
     $psm1Content = [System.Text.StringBuilder]::new()
 
-    Get-ChildItem -Path $SourcePath -Recurse -Filter '*.ps1' |
-        Where-Object { $_.DirectoryName -notmatch '\\Private$' -and
-                       $_.DirectoryName -notmatch '/Private$' } |
-        Sort-Object FullName |
-        ForEach-Object {
-            $null = $psm1Content.AppendLine(". `$PSScriptRoot/$($_.Name)")
-            Copy-Item -Path $_.FullName -Destination $OutputPath -Force
-        }
-
-    # Copy private functions
+    # Private helpers first — public functions may depend on them
     $privatePath = Join-Path $SourcePath 'Private'
     if (Test-Path $privatePath)
     {
-        Get-ChildItem -Path $privatePath -Filter '*.ps1' | ForEach-Object {
-            $null = $psm1Content.AppendLine(". `$PSScriptRoot/Private/$($_.Name)")
+        $null = $psm1Content.AppendLine("# ── Private Helpers $(('─' * 60))")
+        Get-ChildItem -Path $privatePath -Filter '*.ps1' | Sort-Object Name | ForEach-Object {
+            $null = $psm1Content.AppendLine("")
+            $null = $psm1Content.AppendLine((Get-Content $_.FullName -Raw).TrimEnd())
         }
-        $privateOut = Join-Path $OutputPath 'Private'
-        $null = New-Item -ItemType Directory -Path $privateOut -Force
-        Copy-Item -Path "$privatePath/*.ps1" -Destination $privateOut -Force
+        $null = $psm1Content.AppendLine("")
+    }
+
+    # Public functions in folder order matching Source/DirectoryServicesToolkit.psm1
+    foreach ($folder in $script:PublicFolderOrder)
+    {
+        $folderPath = Join-Path $SourcePath $folder
+        if (-not (Test-Path $folderPath)) { continue }
+
+        $null = $psm1Content.AppendLine("# ── $folder $(('─' * (60 - $folder.Length)))")
+        Get-ChildItem -Path $folderPath -Filter '*.ps1' | Sort-Object Name | ForEach-Object {
+            $null = $psm1Content.AppendLine("")
+            $null = $psm1Content.AppendLine((Get-Content $_.FullName -Raw).TrimEnd())
+        }
+        $null = $psm1Content.AppendLine("")
     }
 
     $psm1Content.ToString() | Set-Content -Path $ModulePath -Encoding UTF8

@@ -38,7 +38,7 @@ Invoke-Build Lint
 # Run linter and fix auto-fixable issues
 Invoke-Build LintFix
 
-# Build the module (compile manifest, copy files to output)
+# Build the module (concatenate all .ps1 files into a single .psm1, generate .psd1)
 Invoke-Build Build
 
 # Run full CI pipeline: lint → test → build
@@ -83,15 +83,24 @@ Invoke-ScriptAnalyzer -Path ./Source/ -Recurse -Fix
 ### Module import during development
 
 ```powershell
-# Import the module from source (not installed copy)
-Import-Module ./Output/ModuleName.psd1 -Force
+# Development — import directly from source, no build step needed
+Import-Module ./Source/DirectoryServicesToolkit.psm1 -Force
 
 # Verify functions exported correctly
-Get-Command -Module ModuleName
+Get-Command -Module DirectoryServicesToolkit
 
 # Remove and reimport cleanly
-Remove-Module ModuleName -ErrorAction SilentlyContinue
-Import-Module ./Output/ModuleName.psd1 -Force
+Remove-Module DirectoryServicesToolkit -ErrorAction SilentlyContinue
+Import-Module ./Source/DirectoryServicesToolkit.psm1 -Force
+```
+
+The `Build` task produces `Output/DirectoryServicesToolkit.psm1` (all function source
+concatenated into a single file) and `Output/DirectoryServicesToolkit.psd1`. Import from
+`Output/` when validating the distribution artifact:
+
+```powershell
+Invoke-Build Build
+Import-Module ./Output/DirectoryServicesToolkit.psd1 -Force
 ```
 
 ## Code Style
