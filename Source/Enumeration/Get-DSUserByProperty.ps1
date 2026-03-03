@@ -112,7 +112,7 @@ about_comment_based_help
 
 
     [CmdletBinding(DefaultParameterSetName = "CommonProperty")]
-    [OutputType([PSCustomObject])]
+    [OutputType([PSObject[]])]
     Param
     (
         [Parameter(Mandatory = $False,
@@ -202,17 +202,6 @@ about_comment_based_help
             $TargetSearch = "GC://$($DomainEntry.Name):3268"
         }
         $DomainEntry.Dispose()
-
-        $propertiesOfInterest = @(
-            "alias"
-            "displayname"
-            "mail"
-            "title"
-            "department"
-            "userprincipalname"
-            "manager"
-            "managerMail"
-        )
     }
     Process
     {
@@ -263,6 +252,6 @@ about_comment_based_help
     }
     End
     {
-        $UsersFound
+        [PSObject[]]$UsersFound
     }
 }

@@ -41,7 +41,7 @@ https://gist.github.com/jschell/f34321ec9c73e89b52c90c899bf680c4
 
 
     [CmdletBinding()]
-    [OutputType([PSObject])]
+    [OutputType([PSObject[]])]
     Param
     (
         [Parameter( Mandatory = $False )]
@@ -99,6 +99,6 @@ https://gist.github.com/jschell/f34321ec9c73e89b52c90c899bf680c4
             }
             $DomainEntry.Dispose()
         }
-        $responseAll
+        [PSObject[]]$responseAll
     }
 }
