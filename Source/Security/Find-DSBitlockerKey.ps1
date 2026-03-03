@@ -7,7 +7,7 @@ nesting Get-msFVEObject within function to control exposed data...
 
 
     [CmdletBinding()]
-    [OutputType([PSObject])]
+    [OutputType([PSObject[]])]
     Param
     (
         $Domain = $env:UserDomain,
@@ -33,9 +33,9 @@ nesting Get-msFVEObject within function to control exposed data...
 
 
             [CmdletBinding()]
+            [OutputType([PSObject[]])]
             Param
             (
-                
                 $Domain = $env:UserDomain,
                 
                 [ValidateRange(0,1000)]
@@ -94,9 +94,9 @@ nesting Get-msFVEObject within function to control exposed data...
             }
             End
             {
-                $QueryResult
+                [PSObject[]]$QueryResult
             }
-            
+
         }
     }
     Process
@@ -130,6 +130,6 @@ nesting Get-msFVEObject within function to control exposed data...
     }
     End
     {
-        $ResultSet
+        [PSObject[]]$ResultSet
     }
 }

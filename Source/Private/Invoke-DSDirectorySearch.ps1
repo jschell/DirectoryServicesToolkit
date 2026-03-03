@@ -1,8 +1,3 @@
-[System.Diagnostics.CodeAnalysis.SuppressMessageAttribute(
-    'PSUseOutputTypeCorrectly',
-    '',
-    Justification = 'Comma-array operator prevents single-result pipeline unwrapping; callers rely on array Count and index access'
-)]
 function Invoke-DSDirectorySearch
 {
 <#
@@ -27,6 +22,7 @@ Changelog:
 - Initial creation
 #>
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseOutputTypeCorrectly', '', Justification = 'Comma-array operator prevents single-result pipeline unwrapping; callers rely on array Count and index access')]
     [CmdletBinding()]
     [OutputType([hashtable[]])]
     Param

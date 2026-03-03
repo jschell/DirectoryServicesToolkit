@@ -59,7 +59,7 @@ ChangeLog
 
 
     [CmdletBinding()]
-    [OutputType([PSObject])]
+    [OutputType([PSObject[]])]
     Param
     (
         $Domain = $env:UserDomain,
@@ -201,6 +201,6 @@ ChangeLog
         $invokeComplete = get-date
         $timeToComplete = $invokeComplete - $invokeStart
         Write-Verbose "Time to complete: $($timeToComplete.ToString())"
-        $computerA2AObjects
+        [PSObject[]]$computerA2AObjects
     }
 }

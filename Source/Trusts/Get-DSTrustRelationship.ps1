@@ -180,7 +180,7 @@ Internal helper — queries trustedDomain objects under a given CN=System DN.
     catch
     {
         Write-Verbose "Trust query failed for '$SystemDn': $_"
-        return @()
+        return [hashtable[]]@()
     }
 }
 
