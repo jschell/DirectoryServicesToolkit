@@ -1,0 +1,20 @@
+# Build output
+Output/
+
+# PowerShell test results
+TestResults/
+coverage.xml
+*.TestResults.xml
+
+# platyPS temp files
+Docs/en-US/*.md-meta.json
+
+# Editor files
+.vscode/
+.idea/
+*.suo
+*.user
+
+# OS files
+.DS_Store
+Thumbs.db
