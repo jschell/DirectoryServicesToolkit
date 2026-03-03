@@ -50,7 +50,7 @@ Captures only admin accounts and trust configurations.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
@@ -78,10 +78,79 @@ Changelog:
 
     Begin
     {
-        throw [System.NotImplementedException]'Invoke-DSBaselineCapture is not yet implemented'
+        # Validate and create output directory if needed
+        if (-not (Test-Path -LiteralPath $OutputPath))
+        {
+            try
+            {
+                [void](New-Item -ItemType Directory -Path $OutputPath -Force)
+                Write-Verbose "Created output directory: $OutputPath"
+            }
+            catch
+            {
+                Write-Error "Cannot create output directory '$OutputPath': $_"
+                return
+            }
+        }
+
+        $timestamp = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH-mm-ssZ')
+        $fileName  = '{0}-baseline-{1}.json' -f ($Domain -replace '[^\w\.]', '_'), $timestamp
+        $fullPath  = Join-Path $OutputPath $fileName
+
+        # Indicator → function name mapping
+        $indicatorMap = @{
+            AdminAccounts  = 'Get-DSAdminAccounts'
+            Delegation     = 'Find-DSDelegation'
+            Trusts         = 'Get-DSTrustRelationship'
+            PasswordPolicy = 'Get-DSPasswordPolicy'
+            Kerberoastable = 'Find-DSKerberoastable'
+            ASREPRoastable = 'Find-DSASREPRoastable'
+            AdminSDHolder  = 'Get-DSAdminSDHolder'
+        }
+
+        $snapshot = [ordered]@{
+            Schema        = '1.0'
+            CapturedAt    = (Get-Date).ToUniversalTime().ToString('o')
+            Domain        = $Domain
+            Indicators    = [ordered]@{}
+            CaptureErrors = [ordered]@{}
+        }
+
+        Write-Verbose "Starting baseline capture for domain: $Domain"
+        Write-Verbose "Output file: $fullPath"
     }
 
-    Process {}
+    Process
+    {
+        foreach ($indicator in $Indicators)
+        {
+            $funcName = $indicatorMap[$indicator]
+            Write-Verbose "Capturing indicator: $indicator ($funcName)"
 
-    End {}
+            try
+            {
+                $result = & $funcName -Domain $Domain
+                $snapshot.Indicators[$indicator] = $result
+            }
+            catch
+            {
+                $snapshot.CaptureErrors[$indicator] = $_.Exception.Message
+                Write-Warning "Failed to capture '$indicator': $_"
+            }
+        }
+    }
+
+    End
+    {
+        try
+        {
+            $snapshot | ConvertTo-Json -Depth 10 | Set-Content -Path $fullPath -Encoding UTF8
+            Write-Verbose "Baseline written to: $fullPath"
+            $fullPath
+        }
+        catch
+        {
+            Write-Error "Failed to write baseline file '$fullPath': $_"
+        }
+    }
 }

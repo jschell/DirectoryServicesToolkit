@@ -52,7 +52,7 @@ Compares only admin account and trust changes between the two baselines.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
@@ -73,10 +73,164 @@ Changelog:
 
     Begin
     {
-        throw [System.NotImplementedException]'Compare-DSBaseline is not yet implemented'
+        # Load and validate both JSON files
+        try
+        {
+            $baselineContent = Get-Content -LiteralPath $BaselinePath -Raw -Encoding UTF8
+            $baseline        = $baselineContent | ConvertFrom-Json
+        }
+        catch
+        {
+            Write-Error "Cannot read baseline file '$BaselinePath': $_"
+            return
+        }
+
+        try
+        {
+            $currentContent = Get-Content -LiteralPath $CurrentPath -Raw -Encoding UTF8
+            $current        = $currentContent | ConvertFrom-Json
+        }
+        catch
+        {
+            Write-Error "Cannot read current file '$CurrentPath': $_"
+            return
+        }
+
+        # Schema version check
+        if ($baseline.Schema -ne '1.0' -or $current.Schema -ne '1.0')
+        {
+            Write-Warning 'One or both baseline files have an unexpected Schema version. Results may be inaccurate.'
+        }
+
+        # Identity key per indicator — used to match items across snapshots
+        $identityKeyMap = @{
+            AdminAccounts  = 'DistinguishedName'
+            Delegation     = 'DistinguishedName'   # composite handled below
+            Trusts         = 'Name'
+            PasswordPolicy = 'Name'
+            Kerberoastable = 'DistinguishedName'
+            ASREPRoastable = 'DistinguishedName'
+            AdminSDHolder  = 'DistinguishedName'
+        }
+
+        # Delegation uses a composite key to distinguish delegation type per object
+        $compositeKeyIndicators = [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+        [void]$compositeKeyIndicators.Add('Delegation')
+
+        # Determine which indicators to compare
+        $baselineIndicatorNames = @($baseline.Indicators.PSObject.Properties.Name)
+        $currentIndicatorNames  = @($current.Indicators.PSObject.Properties.Name)
+        $allIndicatorNames      = ($baselineIndicatorNames + $currentIndicatorNames) | Sort-Object -Unique
+
+        if ($Indicator -and $Indicator.Count -gt 0)
+        {
+            foreach ($reqInd in $Indicator)
+            {
+                if ($reqInd -notin $baselineIndicatorNames)
+                {
+                    Write-Warning "Indicator '$reqInd' not found in baseline file."
+                }
+                if ($reqInd -notin $currentIndicatorNames)
+                {
+                    Write-Warning "Indicator '$reqInd' not found in current file."
+                }
+            }
+            $allIndicatorNames = $Indicator
+        }
+
+        $diffs         = [ordered]@{}
+        $totalAdded    = 0
+        $totalRemoved  = 0
+        $totalModified = 0
     }
 
-    Process {}
+    Process
+    {
+        foreach ($ind in $allIndicatorNames)
+        {
+            $identityKey = if ($identityKeyMap.ContainsKey($ind)) { $identityKeyMap[$ind] } else { 'DistinguishedName' }
+            $isComposite = $compositeKeyIndicators.Contains($ind)
 
-    End {}
+            $baselineItems = @($baseline.Indicators.$ind)
+            $currentItems  = @($current.Indicators.$ind)
+
+            # Build lookup maps keyed by identity value
+            $baselineMap = @{}
+            foreach ($item in $baselineItems)
+            {
+                if ($null -eq $item) { continue }
+                $key = if ($isComposite)
+                {
+                    '{0}|{1}' -f $item.$identityKey, $item.DelegationType
+                }
+                else
+                {
+                    [string]$item.$identityKey
+                }
+                if ($key) { $baselineMap[$key] = $item }
+            }
+
+            $currentMap = @{}
+            foreach ($item in $currentItems)
+            {
+                if ($null -eq $item) { continue }
+                $key = if ($isComposite)
+                {
+                    '{0}|{1}' -f $item.$identityKey, $item.DelegationType
+                }
+                else
+                {
+                    [string]$item.$identityKey
+                }
+                if ($key) { $currentMap[$key] = $item }
+            }
+
+            # Compute diff
+            $added   = @($currentMap.Keys | Where-Object { -not $baselineMap.ContainsKey($_) } |
+                         ForEach-Object { $currentMap[$_] })
+
+            $removed = @($baselineMap.Keys | Where-Object { -not $currentMap.ContainsKey($_) } |
+                         ForEach-Object { $baselineMap[$_] })
+
+            $modified = @($currentMap.Keys | Where-Object { $baselineMap.ContainsKey($_) } | ForEach-Object {
+                $b = $baselineMap[$_] | ConvertTo-Json -Depth 5 -Compress
+                $c = $currentMap[$_]  | ConvertTo-Json -Depth 5 -Compress
+                if ($b -ne $c)
+                {
+                    [PSCustomObject]@{
+                        Baseline = $baselineMap[$_]
+                        Current  = $currentMap[$_]
+                    }
+                }
+            })
+
+            $diffs[$ind] = [PSCustomObject]@{
+                Added    = $added
+                Removed  = $removed
+                Modified = $modified
+            }
+
+            $totalAdded    += $added.Count
+            $totalRemoved  += $removed.Count
+            $totalModified += $modified.Count
+        }
+    }
+
+    End
+    {
+        [PSCustomObject]@{
+            BaselineCapturedAt = $baseline.CapturedAt
+            CurrentCapturedAt  = $current.CapturedAt
+            Domain             = $baseline.Domain
+            Diffs              = $diffs
+            Summary            = [PSCustomObject]@{
+                TotalAdded    = $totalAdded
+                TotalRemoved  = $totalRemoved
+                TotalModified = $totalModified
+                HasChanges    = ($totalAdded -gt 0 -or $totalRemoved -gt 0 -or $totalModified -gt 0)
+            }
+        }
+    }
 }
