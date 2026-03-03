@@ -63,7 +63,7 @@ Changelog:
 - Initial creation
 #>
 
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
     Param
     (
@@ -151,6 +151,11 @@ Changelog:
         $fullPath  = Join-Path $OutputPath $fileName
 
         Write-Verbose "Writing $Format report to: $fullPath"
+
+        if (-not $PSCmdlet.ShouldProcess($fullPath, "Write $Format assessment report"))
+        {
+            return
+        }
 
         # ── Render output ──────────────────────────────────────────────────────
 

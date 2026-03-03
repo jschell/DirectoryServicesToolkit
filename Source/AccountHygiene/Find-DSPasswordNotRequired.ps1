@@ -44,7 +44,7 @@ Changelog:
 #>
 
     [CmdletBinding()]
-    [OutputType([PSCustomObject])]
+    [OutputType([PSCustomObject[]])]
     Param
     (
         [Parameter()]
@@ -136,6 +136,6 @@ Changelog:
             Write-Warning "$($results.Count) accounts found with PASSWD_NOTREQD set — this may indicate a bulk provisioning hygiene issue."
         }
 
-        $results
+        [PSCustomObject[]]$results
     }
 }

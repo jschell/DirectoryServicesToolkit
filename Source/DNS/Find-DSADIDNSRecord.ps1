@@ -222,7 +222,10 @@ Changelog:
                         $ntAccount = New-Object System.Security.Principal.NTAccount($ace.IdentityReference)
                         $aceSid    = $ntAccount.Translate([System.Security.Principal.SecurityIdentifier]).ToString()
                     }
-                    catch { }
+                    catch
+                    {
+                        Write-Verbose "Could not resolve SID for '$($ace.IdentityReference)': $_"
+                    }
 
                     if ($aceSid -and $excludedSids.Contains($aceSid)) { continue }
 

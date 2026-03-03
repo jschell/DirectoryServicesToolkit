@@ -40,8 +40,6 @@ function Get-DSDomainObjects
         
         $dateTimeUserMaxPwd = (Get-Date).AddDays(-$UserMaxPwdAgeDays)
         $dateTimeCompMaxPwd = (Get-Date).AddDays(-$ComputerMaxPwdAgeDays)
-        $fileTimeUserMaxPwd = $dateTimeUserMaxPwd.ToFileTime()
-        $fileTimeCompMaxPwd = $dateTimeCompMaxPwd.ToFileTime()
         
         
     }

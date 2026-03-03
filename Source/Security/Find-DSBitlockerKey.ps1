@@ -7,6 +7,7 @@ nesting Get-msFVEObject within function to control exposed data...
 
 
     [CmdletBinding()]
+    [OutputType([PSObject])]
     Param
     (
         $Domain = $env:UserDomain,
