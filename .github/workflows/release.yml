@@ -1,0 +1,207 @@
+name: Release
+
+# Commit-keyword triggered release for DirectoryServicesToolkit.
+#
+# Merge a PR to main with one of these keywords in the commit message:
+#   [release]      - Publish the current version tag unchanged (re-release/retry)
+#   [bump patch]   - Increment patch number  (0.1.2 → 0.1.3)
+#   [bump minor]   - Increment minor version (0.1.2 → 0.2.0)
+#   [bump major]   - Increment major version (0.1.2 → 1.0.0)
+#
+# Version is owned by Source/DirectoryServicesToolkit.psd1 (ModuleVersion field).
+# check-release bumps that file, commits it to main, then build-and-release runs CI.
+#
+# Uses RELEASE_TOKEN (PAT) so the version-bump commit does not trigger
+# infinite loops via GITHUB_TOKEN anti-loop protection.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+
+  # ── Phase 1: Determine if a release is requested and resolve the new version ──
+
+  check-release:
+    if: >-
+      contains(github.event.head_commit.message, '[release]')     ||
+      contains(github.event.head_commit.message, '[bump patch]')  ||
+      contains(github.event.head_commit.message, '[bump minor]')  ||
+      contains(github.event.head_commit.message, '[bump major]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag:     ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Determine bump type
+        id: bump
+        shell: bash
+        run: |
+          MESSAGE="${{ github.event.head_commit.message }}"
+          if echo "$MESSAGE" | grep -q '\[bump major\]'; then
+            echo "type=major" >> "$GITHUB_OUTPUT"
+          elif echo "$MESSAGE" | grep -q '\[bump minor\]'; then
+            echo "type=minor" >> "$GITHUB_OUTPUT"
+          elif echo "$MESSAGE" | grep -q '\[bump patch\]'; then
+            echo "type=patch" >> "$GITHUB_OUTPUT"
+          elif echo "$MESSAGE" | grep -q '\[release\]'; then
+            echo "type=release" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read and bump version in Source/DirectoryServicesToolkit.psd1
+        id: version
+        shell: bash
+        run: |
+          MANIFEST="Source/DirectoryServicesToolkit.psd1"
+          CURRENT=$(sed -n "s/.*ModuleVersion\s*=\s*'\([^']*\)'.*/\1/p" "$MANIFEST")
+          echo "Current version: ${CURRENT}"
+
+          BUMP_TYPE="${{ steps.bump.outputs.type }}"
+
+          if [ "$BUMP_TYPE" = "release" ]; then
+            NEW_VERSION="$CURRENT"
+          else
+            IFS='.' read -ra PARTS <<< "$CURRENT"
+            MAJOR=${PARTS[0]:-0}
+            MINOR=${PARTS[1]:-0}
+            PATCH=${PARTS[2]:-0}
+
+            case $BUMP_TYPE in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+            if [ "$NEW_VERSION" != "$CURRENT" ]; then
+              sed -i "s/ModuleVersion\s*=\s*'${CURRENT}'/ModuleVersion = '${NEW_VERSION}'/" "$MANIFEST"
+              git config user.name  "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add "$MANIFEST"
+              git commit -m "Bump version to ${NEW_VERSION}"
+              git push
+              echo "Bumped psd1: ${CURRENT} -> ${NEW_VERSION}"
+            fi
+          fi
+
+          TAG="v${NEW_VERSION}"
+
+          # Fail loudly if the tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag ${TAG} already exists. Use [release] to re-publish or choose a different bump type."
+            exit 1
+          fi
+
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}"             >> "$GITHUB_OUTPUT"
+          echo "Will release: ${TAG}"
+
+  # ── Phase 2: Run CI, package, and publish the GitHub Release ─────────────────
+
+  build-and-release:
+    needs: check-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main           # picks up the version-bump commit pushed by check-release
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          Set-PSResourceRepository -Name PSGallery -Trusted
+          Install-PSResource InvokeBuild      -Scope CurrentUser -Quiet
+          Install-PSResource Pester           -Scope CurrentUser -Quiet
+          Install-PSResource PSScriptAnalyzer -Scope CurrentUser -Quiet
+
+      - name: Full CI pipeline (lint → test → build)
+        shell: pwsh
+        run: Invoke-Build CI
+
+      - name: Create release archive
+        shell: pwsh
+        run: |
+          $version = "${{ needs.check-release.outputs.version }}"
+          Compress-Archive -Path ./Output/* `
+                           -DestinationPath "./DirectoryServicesToolkit-v${version}.zip"
+
+      - name: Generate SHA256 checksum
+        shell: pwsh
+        id: checksums
+        run: |
+          $version = "${{ needs.check-release.outputs.version }}"
+          $zipPath  = "./DirectoryServicesToolkit-v${version}.zip"
+          $hash     = (Get-FileHash $zipPath -Algorithm SHA256).Hash
+
+          $checksums = @"
+          ``````
+          SHA256:
+          $hash  DirectoryServicesToolkit-v${version}.zip
+          ``````
+          "@
+
+          echo "CHECKSUMS<<EOF" >> $env:GITHUB_OUTPUT
+          echo $checksums       >> $env:GITHUB_OUTPUT
+          echo "EOF"            >> $env:GITHUB_OUTPUT
+
+      - name: Create and push tag
+        shell: bash
+        run: |
+          TAG="${{ needs.check-release.outputs.tag }}"
+          VERSION="${{ needs.check-release.outputs.version }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release ${VERSION}"
+          git push origin "$TAG"
+          echo "Created and pushed tag: ${TAG}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-release.outputs.tag }}
+          name: DirectoryServicesToolkit v${{ needs.check-release.outputs.version }}
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            ```powershell
+            # Download and import
+            Expand-Archive DirectoryServicesToolkit-v${{ needs.check-release.outputs.version }}.zip
+            Import-Module ./DirectoryServicesToolkit/DirectoryServicesToolkit.psd1 -Force
+
+            # Verify
+            Get-Command -Module DirectoryServicesToolkit
+            ```
+
+            ## Requirements
+
+            - PowerShell 7.0+
+            - No RSAT or `ActiveDirectory` module required for most functions
+            - Domain read access for enumeration functions; see each function's `.DESCRIPTION` for required permissions
+
+            ## Downloads
+
+            | File | Description |
+            |------|-------------|
+            | `DirectoryServicesToolkit-v${{ needs.check-release.outputs.version }}.zip` | Module archive — extract and import the `.psd1` |
+
+            ${{ steps.checksums.outputs.CHECKSUMS }}
+          files: |
+            ./DirectoryServicesToolkit-v${{ needs.check-release.outputs.version }}.zip
