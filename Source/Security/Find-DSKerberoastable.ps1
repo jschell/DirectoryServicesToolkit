@@ -45,30 +45,117 @@ Returns all accounts with SPNs including disabled ones, excluding MSAs/gMSAs.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     Param
     (
-        [Parameter()]
+        [Parameter(HelpMessage = 'DNS name of the target domain')]
         [ValidateNotNullOrEmpty()]
         [string]$Domain = $env:USERDNSDOMAIN,
 
-        [Parameter()]
+        [Parameter(HelpMessage = 'Include disabled accounts in results')]
         [switch]$IncludeDisabled,
 
-        [Parameter()]
+        [Parameter(HelpMessage = 'Exclude MSA and gMSA accounts from results')]
         [switch]$ExcludeManagedAccounts
     )
 
     Begin
     {
-        throw [System.NotImplementedException]'Find-DSKerberoastable is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying domain: $DomainName for Kerberoastable accounts"
+
+        # Build LDAP filter dynamically from parameters
+        $filterParts = @(
+            '(objectClass=user)'
+            '(servicePrincipalName=*)'
+            '(!(cn=krbtgt))'
+        )
+
+        if (-not $IncludeDisabled)
+        {
+            $filterParts += '(!(userAccountControl:1.2.840.113556.1.4.803:=2))'
+        }
+
+        if ($ExcludeManagedAccounts)
+        {
+            $filterParts += '(!(objectClass=msDS-GroupManagedServiceAccount))'
+            $filterParts += '(!(objectClass=msDS-ManagedServiceAccount))'
+        }
+
+        $ldapFilter = '(&{0})' -f ($filterParts -join '')
+        Write-Verbose "LDAP filter: $ldapFilter"
+
+        $ldapPath   = "LDAP://$DomainName"
+        $properties = @(
+            'distinguishedName'
+            'sAMAccountName'
+            'servicePrincipalName'
+            'userAccountControl'
+            'pwdLastSet'
+            'objectClass'
+        )
+
+        $results = New-Object System.Collections.ArrayList
     }
 
-    Process {}
+    Process
+    {
+        $queryResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $ldapFilter -Properties $properties
 
-    End {}
+        $now = Get-Date
+
+        foreach ($obj in $queryResults)
+        {
+            $uac = [int]$obj['useraccountcontrol'][0]
+
+            $pwdLastSetRaw = $obj['pwdlastset'][0]
+            if ($null -ne $pwdLastSetRaw -and [long]$pwdLastSetRaw -gt 0)
+            {
+                $passwordLastSet = [DateTime]::FromFileTime([long]$pwdLastSetRaw)
+                $passwordAgeDays = [int]($now - $passwordLastSet).TotalDays
+            }
+            else
+            {
+                $passwordLastSet = $null
+                $passwordAgeDays = $null
+            }
+
+            $isManagedAccount = $obj['objectclass'] -contains 'msDS-GroupManagedServiceAccount' -or
+                                $obj['objectclass'] -contains 'msDS-ManagedServiceAccount'
+
+            [void]$results.Add(
+                [PSCustomObject]@{
+                    SamAccountName    = [string]$obj['samaccountname'][0]
+                    DistinguishedName = [string]$obj['distinguishedname'][0]
+                    SPNs              = @($obj['serviceprincipalname'])
+                    PasswordLastSet   = $passwordLastSet
+                    PasswordAgeDays   = $passwordAgeDays
+                    Enabled           = -not [bool]($uac -band 2)
+                    IsManagedAccount  = [bool]$isManagedAccount
+                }
+            )
+        }
+    }
+
+    End
+    {
+        $results | Sort-Object -Property PasswordAgeDays -Descending
+    }
 }

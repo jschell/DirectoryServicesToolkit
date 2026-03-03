@@ -38,27 +38,97 @@ Returns all accounts (enabled and disabled) with pre-authentication disabled.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     Param
     (
-        [Parameter()]
+        [Parameter(HelpMessage = 'DNS name of the target domain')]
         [ValidateNotNullOrEmpty()]
         [string]$Domain = $env:USERDNSDOMAIN,
 
-        [Parameter()]
+        [Parameter(HelpMessage = 'Include disabled accounts in results')]
         [switch]$IncludeDisabled
     )
 
     Begin
     {
-        throw [System.NotImplementedException]'Find-DSASREPRoastable is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying domain: $DomainName for AS-REP roastable accounts"
+
+        # UAC bit 4194304 (0x400000) = DONT_REQUIRE_PREAUTH
+        $filterParts = @(
+            '(objectClass=user)'
+            '(userAccountControl:1.2.840.113556.1.4.803:=4194304)'
+        )
+
+        if (-not $IncludeDisabled)
+        {
+            $filterParts += '(!(userAccountControl:1.2.840.113556.1.4.803:=2))'
+        }
+
+        $ldapFilter = '(&{0})' -f ($filterParts -join '')
+        Write-Verbose "LDAP filter: $ldapFilter"
+
+        $ldapPath   = "LDAP://$DomainName"
+        $properties = @(
+            'distinguishedName'
+            'sAMAccountName'
+            'userAccountControl'
+            'memberOf'
+            'pwdLastSet'
+        )
+
+        $results = New-Object System.Collections.ArrayList
     }
 
-    Process {}
+    Process
+    {
+        $queryResults = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $ldapFilter -Properties $properties
 
-    End {}
+        foreach ($obj in $queryResults)
+        {
+            $uac = [int]$obj['useraccountcontrol'][0]
+
+            $pwdLastSetRaw = $obj['pwdlastset'][0]
+            $passwordLastSet = if ($null -ne $pwdLastSetRaw -and [long]$pwdLastSetRaw -gt 0)
+            {
+                [DateTime]::FromFileTime([long]$pwdLastSetRaw)
+            }
+            else
+            {
+                $null
+            }
+
+            [void]$results.Add(
+                [PSCustomObject]@{
+                    SamAccountName    = [string]$obj['samaccountname'][0]
+                    DistinguishedName = [string]$obj['distinguishedname'][0]
+                    Enabled           = -not [bool]($uac -band 2)
+                    PasswordLastSet   = $passwordLastSet
+                    MemberOf          = @($obj['memberof'])
+                }
+            )
+        }
+    }
+
+    End
+    {
+        $results
+    }
 }
