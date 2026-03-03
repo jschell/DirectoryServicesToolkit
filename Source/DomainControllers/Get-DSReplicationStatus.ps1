@@ -45,7 +45,7 @@ Returns only replication links that are currently in a failed state.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
@@ -62,10 +62,82 @@ Changelog:
 
     Begin
     {
-        throw [System.NotImplementedException]'Get-DSReplicationStatus is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $dcNames     = @($DomainEntry.DomainControllers | ForEach-Object { $_.Name })
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying replication status for domain: $DomainName ($($dcNames.Count) DC(s))"
     }
 
-    Process {}
+    Process
+    {
+        foreach ($dcName in $dcNames)
+        {
+            Write-Verbose "Querying replication neighbors for: $dcName"
+
+            $dcContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('DirectoryServer', $dcName)
+
+            try
+            {
+                $dcObj = [System.DirectoryServices.ActiveDirectory.DomainController]::GetDomainController($dcContext)
+
+                try
+                {
+                    $neighbors = $dcObj.GetReplicationNeighbors()
+
+                    foreach ($neighbor in $neighbors)
+                    {
+                        $lastResult   = [int]$neighbor.LastSyncResult
+                        $consFailures = [int]$neighbor.ConsecutiveFailureCount
+                        $isFailing    = ($consFailures -gt 0 -or $lastResult -ne 0)
+
+                        if ($ShowFailuresOnly -and -not $isFailing) { continue }
+
+                        $msg = if ($lastResult -eq 0)
+                        {
+                            'Success'
+                        }
+                        else
+                        {
+                            try   { ([System.ComponentModel.Win32Exception]$lastResult).Message }
+                            catch { "Win32 error $lastResult" }
+                        }
+
+                        [PSCustomObject]@{
+                            DCName                = $dcName
+                            Partner               = $neighbor.SourceServer
+                            NamingContext         = $neighbor.PartitionName
+                            LastAttempted         = $neighbor.LastAttemptedSync
+                            LastSuccessful        = $neighbor.LastSuccessfulSync
+                            ConsecutiveFailures   = $consFailures
+                            LastSyncResult        = $lastResult
+                            LastSyncResultMessage = $msg
+                            IsFailing             = $isFailing
+                        }
+                    }
+                }
+                finally
+                {
+                    $dcObj.Dispose()
+                }
+            }
+            catch
+            {
+                Write-Warning "Cannot connect to DC '$dcName': $_"
+            }
+        }
+    }
 
     End {}
 }
