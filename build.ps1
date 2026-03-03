@@ -17,14 +17,15 @@ Common tasks:
   Invoke-Build Clean    - Remove build artifacts
 #>
 
-$ModuleName    = 'DirectoryServicesToolkit'
-$SourcePath    = "$PSScriptRoot/Source"
-$OutputPath    = "$PSScriptRoot/Output"
-$TestPath      = "$PSScriptRoot/Tests"
-$DocsPath      = "$PSScriptRoot/Docs/en-US"
-$ManifestPath  = "$OutputPath/$ModuleName.psd1"
-$ModulePath    = "$OutputPath/$ModuleName.psm1"
-$AnalyzerSettings = "$PSScriptRoot/PSScriptAnalyzerSettings.psd1"
+$ModuleName          = 'DirectoryServicesToolkit'
+$SourcePath          = "$PSScriptRoot/Source"
+$SourceManifestPath  = "$SourcePath/$ModuleName.psd1"
+$OutputPath          = "$PSScriptRoot/Output"
+$TestPath            = "$PSScriptRoot/Tests"
+$DocsPath            = "$PSScriptRoot/Docs/en-US"
+$ManifestPath        = "$OutputPath/$ModuleName.psd1"
+$ModulePath          = "$OutputPath/$ModuleName.psm1"
+$AnalyzerSettings    = "$PSScriptRoot/PSScriptAnalyzerSettings.psd1"
 
 # ── Helper ──────────────────────────────────────────────────────────────────
 
@@ -96,36 +97,33 @@ task Build Clean, {
 
     $psm1Content.ToString() | Set-Content -Path $ModulePath -Encoding UTF8
 
-    # Determine highest function version for module version
-    $versionPattern = '####\s+Version:\s+([\d.]+)'
-    $highestVersion = '0.1.0'
-    Get-ChildItem -Path $SourcePath -Recurse -Filter '*.ps1' | ForEach-Object {
-        $content = Get-Content $_.FullName -Raw
-        if ($content -match $versionPattern)
-        {
-            if ([version]$Matches[1] -gt [version]$highestVersion)
-            {
-                $highestVersion = $Matches[1]
-            }
-        }
-    }
+    # Version is owned by Source/DirectoryServicesToolkit.psd1 — read it from there.
+    $sourceManifest = Import-PowerShellDataFile $SourceManifestPath
+    $moduleVersion  = $sourceManifest.ModuleVersion.ToString()
 
     $publicFunctions = Get-PublicFunctions
 
+    # Generate the distributable manifest in Output/
     $manifestParams = @{
         Path              = $ManifestPath
-        ModuleVersion     = $highestVersion
-        Author            = 'J Schell'
-        Description       = 'Active Directory security assessment and operational toolkit'
-        PowerShellVersion = '7.0'
+        ModuleVersion     = $moduleVersion
+        GUID              = $sourceManifest.GUID
+        Author            = $sourceManifest.Author
+        Description       = $sourceManifest.Description
+        PowerShellVersion = $sourceManifest.PowerShellVersion
         RootModule        = "$ModuleName.psm1"
         FunctionsToExport = $publicFunctions
-        Tags              = @('ActiveDirectory', 'Security', 'Audit', 'DirectoryServices')
-        LicenseUri        = 'https://opensource.org/licenses/MIT'
-        ProjectUri        = 'https://github.com/jschell/DirectoryServicesToolkit'
+        Tags              = $sourceManifest.PrivateData.PSData.Tags
+        LicenseUri        = $sourceManifest.PrivateData.PSData.LicenseUri
+        ProjectUri        = $sourceManifest.PrivateData.PSData.ProjectUri
     }
     New-ModuleManifest @manifestParams
-    Write-Build Green "Built $ModuleName v$highestVersion -> $OutputPath"
+
+    # Sync FunctionsToExport back to Source/psd1 as functions are added/removed.
+    # ModuleVersion is left unchanged — only the release workflow bumps it.
+    Update-ModuleManifest -Path $SourceManifestPath -FunctionsToExport $publicFunctions
+
+    Write-Build Green "Built $ModuleName v$moduleVersion -> $OutputPath"
 }
 
 task Lint {

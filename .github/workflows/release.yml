@@ -8,10 +8,11 @@ name: Release
 #   [bump minor]   - Increment minor version (0.1.2 → 0.2.0)
 #   [bump major]   - Increment major version (0.1.2 → 1.0.0)
 #
-# Version is tracked via git tags (v*). Defaults to v0.1.0 on first release.
+# Version is owned by Source/DirectoryServicesToolkit.psd1 (ModuleVersion field).
+# check-release bumps that file, commits it to main, then build-and-release runs CI.
 #
-# Uses RELEASE_TOKEN (PAT) so the tag-push event is not swallowed by
-# GitHub's GITHUB_TOKEN anti-loop protection.
+# Uses RELEASE_TOKEN (PAT) so the version-bump commit does not trigger
+# infinite loops via GITHUB_TOKEN anti-loop protection.
 
 on:
   push:
@@ -58,19 +59,13 @@ jobs:
             echo "type=release" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Read version from tags and calculate next version
+      - name: Read and bump version in Source/DirectoryServicesToolkit.psd1
         id: version
         shell: bash
         run: |
-          # Version source is git tags. Falls back to 0.1.0 if no tags exist yet.
-          CURRENT_TAG=$(git tag -l 'v[0-9]*' | sort -V | tail -1)
-          if [ -z "$CURRENT_TAG" ]; then
-            CURRENT="0.1.0"
-            echo "No existing tags found — starting at ${CURRENT}"
-          else
-            CURRENT="${CURRENT_TAG#v}"
-            echo "Current version from tag: ${CURRENT}"
-          fi
+          MANIFEST="Source/DirectoryServicesToolkit.psd1"
+          CURRENT=$(sed -n "s/.*ModuleVersion\s*=\s*'\([^']*\)'.*/\1/p" "$MANIFEST")
+          echo "Current version: ${CURRENT}"
 
           BUMP_TYPE="${{ steps.bump.outputs.type }}"
 
@@ -79,7 +74,7 @@ jobs:
           else
             IFS='.' read -ra PARTS <<< "$CURRENT"
             MAJOR=${PARTS[0]:-0}
-            MINOR=${PARTS[1]:-1}
+            MINOR=${PARTS[1]:-0}
             PATCH=${PARTS[2]:-0}
 
             case $BUMP_TYPE in
@@ -89,6 +84,16 @@ jobs:
             esac
 
             NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+            if [ "$NEW_VERSION" != "$CURRENT" ]; then
+              sed -i "s/ModuleVersion\s*=\s*'${CURRENT}'/ModuleVersion = '${NEW_VERSION}'/" "$MANIFEST"
+              git config user.name  "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add "$MANIFEST"
+              git commit -m "Bump version to ${NEW_VERSION}"
+              git push
+              echo "Bumped psd1: ${CURRENT} -> ${NEW_VERSION}"
+            fi
           fi
 
           TAG="v${NEW_VERSION}"
@@ -114,7 +119,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: main           # picks up the version-bump commit pushed by check-release
           fetch-depth: 0
           token: ${{ secrets.RELEASE_TOKEN }}
 
