@@ -13,8 +13,17 @@ configured in the domain. For each PSO, includes:
   - Maximum and minimum password age
   - Lockout threshold and observation window
   - Complexity requirements
+  - Reversible encryption flag
   - Precedence value
   - Applied-to groups or accounts (msDS-PSOAppliesTo)
+
+The Default Domain Policy is read from the domain root DirectoryEntry object.
+PSOs are read from CN=Password Settings Container,CN=System,<DomainDN>.
+
+Interval attributes (maxPwdAge, lockoutDuration, etc.) are stored as negative
+100-nanosecond intervals in Active Directory; this function converts them to
+[TimeSpan] objects. A value of 0 in the store means "no limit" and is returned
+as [TimeSpan]::MaxValue.
 
 Requires read access to the Password Settings Container
 (CN=Password Settings Container,CN=System,DC=...).
@@ -44,7 +53,7 @@ Returns only the Default Domain Password Policy.
 
 Changelog:
 2026-03-03::0.1.0
-- Initial creation — stub, pending implementation
+- Initial creation
 #>
 
     [CmdletBinding()]
@@ -61,10 +70,170 @@ Changelog:
 
     Begin
     {
-        throw [System.NotImplementedException]'Get-DSPasswordPolicy is not yet implemented'
+        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
+
+        try
+        {
+            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
+            $DomainName  = $DomainEntry.Name
+            $DomainEntry.Dispose()
+        }
+        catch
+        {
+            Write-Error "Cannot connect to domain '$Domain': $_"
+            return
+        }
+
+        Write-Verbose "Querying domain: $DomainName for password policies"
+
+        $domainDn = 'DC=' + ($DomainName -replace '\.', ',DC=')
     }
 
-    Process {}
+    Process
+    {
+        # ── Default Domain Policy ─────────────────────────────────────────────
+
+        $domainRoot = $null
+        try
+        {
+            $domainRoot = [adsi]"LDAP://$DomainName"
+
+            $maxPwdAge   = ConvertFrom-ADInterval $domainRoot.Properties['maxPwdAge'][0]
+            $minPwdAge   = ConvertFrom-ADInterval $domainRoot.Properties['minPwdAge'][0]
+            $lockoutDur  = ConvertFrom-ADInterval $domainRoot.Properties['lockoutDuration'][0]
+            $lockoutObs  = ConvertFrom-ADInterval $domainRoot.Properties['lockoutObservationWindow'][0]
+
+            $pwdProps    = [int]$domainRoot.Properties['pwdProperties'][0]
+
+            [PSCustomObject]@{
+                PolicyType               = 'Default'
+                Name                     = 'Default Domain Policy'
+                MinPasswordLength        = [int]$domainRoot.Properties['minPwdLength'][0]
+                PasswordHistoryCount     = [int]$domainRoot.Properties['pwdHistoryLength'][0]
+                MaxPasswordAge           = $maxPwdAge
+                MinPasswordAge           = $minPwdAge
+                LockoutThreshold         = [int]$domainRoot.Properties['lockoutThreshold'][0]
+                LockoutDuration          = $lockoutDur
+                LockoutObservationWindow = $lockoutObs
+                ComplexityEnabled        = [bool]($pwdProps -band 1)
+                ReversibleEncryption     = [bool]($pwdProps -band 16)
+                Precedence               = $null
+                AppliesTo                = $null
+            }
+        }
+        catch
+        {
+            Write-Error "Failed to read Default Domain Policy: $_"
+        }
+        finally
+        {
+            if ($null -ne $domainRoot) { $domainRoot.Dispose() }
+        }
+
+        # ── Fine-Grained Password Policies (PSOs) ─────────────────────────────
+
+        if (-not $IncludeFineGrained) { return }
+
+        $psoPath   = "LDAP://CN=Password Settings Container,CN=System,$domainDn"
+        $psoFilter = '(objectClass=msDS-PasswordSettings)'
+        $psoProps  = @(
+            'name'
+            'msDS-PasswordSettingsPrecedence'
+            'msDS-MaximumPasswordAge'
+            'msDS-MinimumPasswordAge'
+            'msDS-MinimumPasswordLength'
+            'msDS-PasswordHistoryLength'
+            'msDS-LockoutThreshold'
+            'msDS-LockoutDuration'
+            'msDS-LockoutObservationWindow'
+            'msDS-PasswordComplexityEnabled'
+            'msDS-PasswordReversibleEncryptionEnabled'
+            'msDS-PSOAppliesTo'
+        )
+
+        $psoResults = $null
+        try
+        {
+            $psoResults = Invoke-DSDirectorySearch -LdapPath $psoPath `
+                -Filter $psoFilter -Properties $psoProps
+        }
+        catch
+        {
+            Write-Verbose "Could not query PSO container (may not exist or insufficient rights): $_"
+            return
+        }
+
+        Write-Verbose "Found $($psoResults.Count) Fine-Grained Password Policies"
+
+        foreach ($pso in $psoResults)
+        {
+            $maxAge  = ConvertFrom-ADInterval $pso['msds-maximumpasswordage'][0]
+            $minAge  = ConvertFrom-ADInterval $pso['msds-minimumpasswordage'][0]
+            $lockDur = ConvertFrom-ADInterval $pso['msds-lockoutduration'][0]
+            $lockObs = ConvertFrom-ADInterval $pso['msds-lockoutobservationwindow'][0]
+
+            $complexRaw   = $pso['msds-passwordcomplexityenabled']
+            $revEncRaw    = $pso['msds-passwordreversibleencryptionenabled']
+            $appliesToRaw = $pso['msds-psoapplies to']
+            if (-not $appliesToRaw) { $appliesToRaw = $pso['msds-psoapplies_to'] }
+            if (-not $appliesToRaw) { $appliesToRaw = $pso['msds-psoapplies'] }
+
+            # Try the key with space as ADSI returns it
+            $appliesToKey = ($pso.Keys | Where-Object { $_ -like 'msds-psoapplies*' } | Select-Object -First 1)
+            $appliesToRaw = if ($appliesToKey) { $pso[$appliesToKey] } else { @() }
+
+            [PSCustomObject]@{
+                PolicyType               = 'FineGrained'
+                Name                     = [string]$pso['name'][0]
+                MinPasswordLength        = [int]$pso['msds-minimumpasswordlength'][0]
+                PasswordHistoryCount     = [int]$pso['msds-passwordhistorylength'][0]
+                MaxPasswordAge           = $maxAge
+                MinPasswordAge           = $minAge
+                LockoutThreshold         = [int]$pso['msds-lockoutthreshold'][0]
+                LockoutDuration          = $lockDur
+                LockoutObservationWindow = $lockObs
+                ComplexityEnabled        = if ($complexRaw -and $complexRaw.Count -gt 0) { [bool]$complexRaw[0] } else { $false }
+                ReversibleEncryption     = if ($revEncRaw -and $revEncRaw.Count -gt 0) { [bool]$revEncRaw[0] } else { $false }
+                Precedence               = [int]$pso['msds-passwordsettingsprecedence'][0]
+                AppliesTo                = if ($appliesToRaw -and $appliesToRaw.Count -gt 0) { @($appliesToRaw) } else { @() }
+            }
+        }
+    }
 
     End {}
+}
+
+
+function ConvertFrom-ADInterval
+{
+<#
+.SYNOPSIS
+Internal helper — converts an AD negative 100-nanosecond interval to a TimeSpan.
+#>
+    [CmdletBinding()]
+    [OutputType([TimeSpan])]
+    Param
+    (
+        [Parameter()]
+        $Value
+    )
+
+    if ($null -eq $Value) { return [TimeSpan]::Zero }
+
+    $ticks = 0
+    if ($Value -is [System.DirectoryServices.LargeInteger])
+    {
+        # COM LargeInteger from ADSI property bag
+        $high  = $Value.GetType().InvokeMember('HighPart', [System.Reflection.BindingFlags]::GetProperty, $null, $Value, $null)
+        $low   = $Value.GetType().InvokeMember('LowPart',  [System.Reflection.BindingFlags]::GetProperty, $null, $Value, $null)
+        $ticks = ([long]$high -shl 32) -bor ([long]([uint32]$low))
+    }
+    else
+    {
+        $ticks = [long]$Value
+    }
+
+    if ($ticks -eq 0) { return [TimeSpan]::MaxValue }
+
+    [TimeSpan]::FromTicks([Math]::Abs($ticks))
 }
