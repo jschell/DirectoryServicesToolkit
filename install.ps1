@@ -18,9 +18,6 @@
     Run as the user who will import the module — no elevation required.
 #>
 
-[CmdletBinding(SupportsShouldProcess)]
-Param()
-
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -93,33 +90,30 @@ Expand-Archive -Path $tmpZip -DestinationPath $tmpExtract -Force
 $modulePath    = Get-UserModulePath
 $installFolder = Join-Path $modulePath "$ModuleName\$version"
 
-if ($PSCmdlet.ShouldProcess($installFolder, "Install $ModuleName v$version"))
+$null = New-Item -ItemType Directory -Path $installFolder -Force
+
+$filesToInstall = @(
+    "$ModuleName.psm1"
+    "$ModuleName.psd1"
+)
+
+foreach ($file in $filesToInstall)
 {
-    $null = New-Item -ItemType Directory -Path $installFolder -Force
-
-    $filesToInstall = @(
-        "$ModuleName.psm1"
-        "$ModuleName.psd1"
-    )
-
-    foreach ($file in $filesToInstall)
+    $src = Get-ChildItem -Path $tmpExtract -Filter $file -Recurse | Select-Object -First 1
+    if (-not $src)
     {
-        $src = Get-ChildItem -Path $tmpExtract -Filter $file -Recurse | Select-Object -First 1
-        if (-not $src)
-        {
-            throw "Expected file '$file' not found in the release archive."
-        }
-        Copy-Item -Path $src.FullName -Destination $installFolder -Force
+        throw "Expected file '$file' not found in the release archive."
     }
-
-    # Clean up temp files
-    Remove-Item $tmpZip     -Force -ErrorAction SilentlyContinue
-    Remove-Item $tmpExtract -Recurse -Force -ErrorAction SilentlyContinue
-
-    Write-Host ""
-    Write-Host "Installed $ModuleName v$version to:" -ForegroundColor Green
-    Write-Host "  $installFolder" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Import with:" -ForegroundColor Yellow
-    Write-Host "  Import-Module $ModuleName" -ForegroundColor Yellow
+    Copy-Item -Path $src.FullName -Destination $installFolder -Force
 }
+
+# Clean up temp files
+Remove-Item $tmpZip     -Force -ErrorAction SilentlyContinue
+Remove-Item $tmpExtract -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host ""
+Write-Host "Installed $ModuleName v$version to:" -ForegroundColor Green
+Write-Host "  $installFolder" -ForegroundColor Green
+Write-Host ""
+Write-Host "Import with:" -ForegroundColor Yellow
+Write-Host "  Import-Module $ModuleName" -ForegroundColor Yellow
