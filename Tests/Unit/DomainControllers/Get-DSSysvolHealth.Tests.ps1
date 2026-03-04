@@ -115,193 +115,160 @@ Describe 'Get-DSSysvolHealth' -Tag 'Unit', 'DomainControllers' {
     Context 'Mocked query — healthy DC' {
 
         BeforeEach {
-            InModuleScope DirectoryServicesToolkit {
-
-                Mock New-CimSession {
-                    return [PSCustomObject]@{ ComputerName = 'dc01.contoso.com' }
-                }
-
-                Mock Get-CimInstance {
-                    param($ClassName, $Namespace, $CimSession)
-                    if ($ClassName -eq 'Win32_Share')
-                    {
-                        return @(
-                            [PSCustomObject]@{ Name = 'SYSVOL'   },
-                            [PSCustomObject]@{ Name = 'NETLOGON' }
-                        )
-                    }
-                    elseif ($ClassName -eq 'DfsrReplicatedFolderInfo')
-                    {
-                        return [PSCustomObject]@{
-                            ReplicationGroupName = 'Domain System Volume'
-                            State                = 4
-                            CurrentStageSizeInMb = 0.0
-                        }
-                    }
-                }
-
-                Mock Get-CimClass { return [PSCustomObject]@{} }
-
-                Mock Invoke-CimMethod {
-                    return [PSCustomObject]@{ uValue = 1 }
-                }
-
-                Mock Remove-CimSession {}
+            Mock New-CimSession -ModuleName DirectoryServicesToolkit {
+                return [PSCustomObject]@{ ComputerName = 'dc01.contoso.com' }
             }
+
+            Mock Get-CimInstance -ModuleName DirectoryServicesToolkit {
+                param($ClassName, $Namespace, $CimSession)
+                if ($ClassName -eq 'Win32_Share')
+                {
+                    return @(
+                        [PSCustomObject]@{ Name = 'SYSVOL'   },
+                        [PSCustomObject]@{ Name = 'NETLOGON' }
+                    )
+                }
+                elseif ($ClassName -eq 'DfsrReplicatedFolderInfo')
+                {
+                    return [PSCustomObject]@{
+                        ReplicationGroupName = 'Domain System Volume'
+                        State                = 4
+                        CurrentStageSizeInMb = 0.0
+                    }
+                }
+            }
+
+            Mock Get-CimClass -ModuleName DirectoryServicesToolkit { return [PSCustomObject]@{} }
+
+            Mock Invoke-CimMethod -ModuleName DirectoryServicesToolkit {
+                return [PSCustomObject]@{ uValue = 1 }
+            }
+
+            Mock Remove-CimSession -ModuleName DirectoryServicesToolkit {}
         }
 
         It 'Healthy DC should have IsHealthy=$true' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
-                $result.IsHealthy | Should -BeTrue
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
+            $result.IsHealthy | Should -BeTrue
         }
 
         It 'Healthy DC should have empty Errors array' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
-                $result.Errors.Count | Should -Be 0
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
+            $result.Errors.Count | Should -Be 0
         }
 
         It 'Healthy DC should have SYSVOLShared=$true' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
-                $result.SYSVOLShared | Should -BeTrue
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
+            $result.SYSVOLShared | Should -BeTrue
         }
 
         It 'Healthy DC should have NETLOGONShared=$true' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
-                $result.NETLOGONShared | Should -BeTrue
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
+            $result.NETLOGONShared | Should -BeTrue
         }
 
         It 'Healthy DC should have DFSRState=Normal' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
-                $result.DFSRState     | Should -Be 'Normal'
-                $result.DFSRStateCode | Should -Be 4
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc01.contoso.com'
+            $result.DFSRState     | Should -Be 'Normal'
+            $result.DFSRStateCode | Should -Be 4
         }
     }
 
     Context 'Mocked query — missing SYSVOL share' {
 
         BeforeEach {
-            InModuleScope DirectoryServicesToolkit {
-
-                Mock New-CimSession {
-                    return [PSCustomObject]@{ ComputerName = 'dc02.contoso.com' }
-                }
-
-                Mock Get-CimInstance {
-                    param($ClassName, $Namespace, $CimSession)
-                    if ($ClassName -eq 'Win32_Share')
-                    {
-                        # Only NETLOGON returned — SYSVOL missing
-                        return @([PSCustomObject]@{ Name = 'NETLOGON' })
-                    }
-                    elseif ($ClassName -eq 'DfsrReplicatedFolderInfo')
-                    {
-                        return [PSCustomObject]@{
-                            ReplicationGroupName = 'Domain System Volume'
-                            State                = 4
-                            CurrentStageSizeInMb = 0.0
-                        }
-                    }
-                }
-
-                Mock Get-CimClass { return [PSCustomObject]@{} }
-                Mock Invoke-CimMethod { return [PSCustomObject]@{ uValue = 1 } }
-                Mock Remove-CimSession {}
+            Mock New-CimSession -ModuleName DirectoryServicesToolkit {
+                return [PSCustomObject]@{ ComputerName = 'dc02.contoso.com' }
             }
+
+            Mock Get-CimInstance -ModuleName DirectoryServicesToolkit {
+                param($ClassName, $Namespace, $CimSession)
+                if ($ClassName -eq 'Win32_Share')
+                {
+                    # Only NETLOGON returned — SYSVOL missing
+                    return @([PSCustomObject]@{ Name = 'NETLOGON' })
+                }
+                elseif ($ClassName -eq 'DfsrReplicatedFolderInfo')
+                {
+                    return [PSCustomObject]@{
+                        ReplicationGroupName = 'Domain System Volume'
+                        State                = 4
+                        CurrentStageSizeInMb = 0.0
+                    }
+                }
+            }
+
+            Mock Get-CimClass -ModuleName DirectoryServicesToolkit { return [PSCustomObject]@{} }
+            Mock Invoke-CimMethod -ModuleName DirectoryServicesToolkit { return [PSCustomObject]@{ uValue = 1 } }
+            Mock Remove-CimSession -ModuleName DirectoryServicesToolkit {}
         }
 
         It 'Missing SYSVOL share should set SYSVOLShared=$false' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc02.contoso.com'
-                $result.SYSVOLShared | Should -BeFalse
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc02.contoso.com'
+            $result.SYSVOLShared | Should -BeFalse
         }
 
         It 'Missing SYSVOL share should set IsHealthy=$false' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc02.contoso.com'
-                $result.IsHealthy | Should -BeFalse
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc02.contoso.com'
+            $result.IsHealthy | Should -BeFalse
         }
 
         It 'Missing SYSVOL share should add error entry' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc02.contoso.com'
-                $result.Errors | Should -Contain 'SYSVOL share missing'
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc02.contoso.com'
+            $result.Errors | Should -Contain 'SYSVOL share missing'
         }
     }
 
     Context 'Mocked query — DFSR InError state' {
 
         BeforeEach {
-            InModuleScope DirectoryServicesToolkit {
-
-                Mock New-CimSession {
-                    return [PSCustomObject]@{ ComputerName = 'dc03.contoso.com' }
-                }
-
-                Mock Get-CimInstance {
-                    param($ClassName, $Namespace, $CimSession)
-                    if ($ClassName -eq 'Win32_Share')
-                    {
-                        return @(
-                            [PSCustomObject]@{ Name = 'SYSVOL'   },
-                            [PSCustomObject]@{ Name = 'NETLOGON' }
-                        )
-                    }
-                    elseif ($ClassName -eq 'DfsrReplicatedFolderInfo')
-                    {
-                        return [PSCustomObject]@{
-                            ReplicationGroupName = 'Domain System Volume'
-                            State                = 5   # InError
-                            CurrentStageSizeInMb = 125.0
-                        }
-                    }
-                }
-
-                Mock Get-CimClass { return [PSCustomObject]@{} }
-                Mock Invoke-CimMethod { return [PSCustomObject]@{ uValue = 1 } }
-                Mock Remove-CimSession {}
+            Mock New-CimSession -ModuleName DirectoryServicesToolkit {
+                return [PSCustomObject]@{ ComputerName = 'dc03.contoso.com' }
             }
+
+            Mock Get-CimInstance -ModuleName DirectoryServicesToolkit {
+                param($ClassName, $Namespace, $CimSession)
+                if ($ClassName -eq 'Win32_Share')
+                {
+                    return @(
+                        [PSCustomObject]@{ Name = 'SYSVOL'   },
+                        [PSCustomObject]@{ Name = 'NETLOGON' }
+                    )
+                }
+                elseif ($ClassName -eq 'DfsrReplicatedFolderInfo')
+                {
+                    return [PSCustomObject]@{
+                        ReplicationGroupName = 'Domain System Volume'
+                        State                = 5   # InError
+                        CurrentStageSizeInMb = 125.0
+                    }
+                }
+            }
+
+            Mock Get-CimClass -ModuleName DirectoryServicesToolkit { return [PSCustomObject]@{} }
+            Mock Invoke-CimMethod -ModuleName DirectoryServicesToolkit { return [PSCustomObject]@{ uValue = 1 } }
+            Mock Remove-CimSession -ModuleName DirectoryServicesToolkit {}
         }
 
         It 'DFSR InError state should set DFSRState=InError' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc03.contoso.com'
-                $result.DFSRState     | Should -Be 'InError'
-                $result.DFSRStateCode | Should -Be 5
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc03.contoso.com'
+            $result.DFSRState     | Should -Be 'InError'
+            $result.DFSRStateCode | Should -Be 5
         }
 
         It 'DFSR InError state should set IsHealthy=$false' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc03.contoso.com'
-                $result.IsHealthy | Should -BeFalse
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc03.contoso.com'
+            $result.IsHealthy | Should -BeFalse
         }
 
         It 'DFSR InError state should add error entry' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc03.contoso.com'
-                $result.Errors | Should -Contain 'DFSR state: InError'
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc03.contoso.com'
+            $result.Errors | Should -Contain 'DFSR state: InError'
         }
 
         It 'StagingBacklogMB should reflect DFSR staging size' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Get-DSSysvolHealth -ComputerName 'dc03.contoso.com'
-                $result.StagingBacklogMB | Should -Be 125.0
-            }
+            $result = Get-DSSysvolHealth -ComputerName 'dc03.contoso.com'
+            $result.StagingBacklogMB | Should -Be 125.0
         }
     }
 }
