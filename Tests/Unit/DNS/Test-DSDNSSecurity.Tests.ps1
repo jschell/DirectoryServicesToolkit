@@ -174,118 +174,100 @@ Describe 'Test-DSDNSSecurity' -Tag 'Unit', 'DNS' {
     Context 'Mocked query — secure zone and insecure zone' {
 
         BeforeEach {
-            InModuleScope DirectoryServicesToolkit {
-                Mock Get-CimInstance {
-                    return @(
-                        # Zone 1: Secure (DynamicUpdate=2, SecureSecondaries=3)
-                        [PSCustomObject]@{
-                            Name                 = 'contoso.com'
-                            ZoneType             = 1
-                            DynamicUpdate        = 2
-                            SecureSecondaries    = 3
-                            SecondaryServers     = $null
-                            IsAutoCreated        = $false
-                            IsReverseLookupZone  = $false
-                            IsPaused             = $false
-                        },
-                        # Zone 2: Insecure (DynamicUpdate=1, SecureSecondaries=0)
-                        [PSCustomObject]@{
-                            Name                 = 'insecure.local'
-                            ZoneType             = 1
-                            DynamicUpdate        = 1
-                            SecureSecondaries    = 0
-                            SecondaryServers     = @('10.0.0.1')
-                            IsAutoCreated        = $false
-                            IsReverseLookupZone  = $false
-                            IsPaused             = $false
-                        },
-                        # Zone 3: Reverse lookup — should be skipped
-                        [PSCustomObject]@{
-                            Name                 = '1.168.192.in-addr.arpa'
-                            ZoneType             = 1
-                            DynamicUpdate        = 2
-                            SecureSecondaries    = 3
-                            SecondaryServers     = $null
-                            IsAutoCreated        = $false
-                            IsReverseLookupZone  = $true
-                            IsPaused             = $false
-                        }
-                    )
-                }
-
-                Mock New-CimSession {
-                    return [PSCustomObject]@{ ComputerName = 'dc01.contoso.com' }
-                }
-
-                Mock Remove-CimSession {}
-
-                Mock Resolve-DSDomainName { return 'contoso.com' }
-                Mock Get-DSPdcEmulatorName { return 'dc01.contoso.com' }
+            Mock Get-CimInstance -ModuleName DirectoryServicesToolkit {
+                return @(
+                    # Zone 1: Secure (DynamicUpdate=2, SecureSecondaries=3)
+                    [PSCustomObject]@{
+                        Name                 = 'contoso.com'
+                        ZoneType             = 1
+                        DynamicUpdate        = 2
+                        SecureSecondaries    = 3
+                        SecondaryServers     = $null
+                        IsAutoCreated        = $false
+                        IsReverseLookupZone  = $false
+                        IsPaused             = $false
+                    },
+                    # Zone 2: Insecure (DynamicUpdate=1, SecureSecondaries=0)
+                    [PSCustomObject]@{
+                        Name                 = 'insecure.local'
+                        ZoneType             = 1
+                        DynamicUpdate        = 1
+                        SecureSecondaries    = 0
+                        SecondaryServers     = @('10.0.0.1')
+                        IsAutoCreated        = $false
+                        IsReverseLookupZone  = $false
+                        IsPaused             = $false
+                    },
+                    # Zone 3: Reverse lookup — should be skipped
+                    [PSCustomObject]@{
+                        Name                 = '1.168.192.in-addr.arpa'
+                        ZoneType             = 1
+                        DynamicUpdate        = 2
+                        SecureSecondaries    = 3
+                        SecondaryServers     = $null
+                        IsAutoCreated        = $false
+                        IsReverseLookupZone  = $true
+                        IsPaused             = $false
+                    }
+                )
             }
+
+            Mock New-CimSession -ModuleName DirectoryServicesToolkit {
+                return [PSCustomObject]@{ ComputerName = 'dc01.contoso.com' }
+            }
+
+            Mock Remove-CimSession -ModuleName DirectoryServicesToolkit {}
+
+            Mock Resolve-DSDomainName -ModuleName DirectoryServicesToolkit { return 'contoso.com' }
+            Mock Get-DSPdcEmulatorName -ModuleName DirectoryServicesToolkit { return 'dc01.contoso.com' }
         }
 
         It 'Should return exactly two zone results (reverse lookup skipped)' {
-            InModuleScope DirectoryServicesToolkit {
-                $results = Test-DSDNSSecurity -Domain 'contoso.com'
-                $results.Count | Should -Be 2
-            }
+            $results = Test-DSDNSSecurity -Domain 'contoso.com'
+            $results.Count | Should -Be 2
         }
 
         It 'Secure zone should have empty RiskFactors' {
-            InModuleScope DirectoryServicesToolkit {
-                $results     = Test-DSDNSSecurity -Domain 'contoso.com'
-                $secureZone  = $results | Where-Object { $_.ZoneName -eq 'contoso.com' }
-                $secureZone.RiskFactors.Count | Should -Be 0
-            }
+            $results     = Test-DSDNSSecurity -Domain 'contoso.com'
+            $secureZone  = $results | Where-Object { $_.ZoneName -eq 'contoso.com' }
+            $secureZone.RiskFactors.Count | Should -Be 0
         }
 
         It 'Secure zone AllowsUnsecuredDynamic should be $false' {
-            InModuleScope DirectoryServicesToolkit {
-                $results    = Test-DSDNSSecurity -Domain 'contoso.com'
-                $secureZone = $results | Where-Object { $_.ZoneName -eq 'contoso.com' }
-                $secureZone.AllowsUnsecuredDynamic | Should -BeFalse
-            }
+            $results    = Test-DSDNSSecurity -Domain 'contoso.com'
+            $secureZone = $results | Where-Object { $_.ZoneName -eq 'contoso.com' }
+            $secureZone.AllowsUnsecuredDynamic | Should -BeFalse
         }
 
         It 'Secure zone ZoneTransferPolicy should be NoTransfer' {
-            InModuleScope DirectoryServicesToolkit {
-                $results    = Test-DSDNSSecurity -Domain 'contoso.com'
-                $secureZone = $results | Where-Object { $_.ZoneName -eq 'contoso.com' }
-                $secureZone.ZoneTransferPolicy | Should -Be 'NoTransfer'
-            }
+            $results    = Test-DSDNSSecurity -Domain 'contoso.com'
+            $secureZone = $results | Where-Object { $_.ZoneName -eq 'contoso.com' }
+            $secureZone.ZoneTransferPolicy | Should -Be 'NoTransfer'
         }
 
         It 'Insecure zone should have both risk factors' {
-            InModuleScope DirectoryServicesToolkit {
-                $results       = Test-DSDNSSecurity -Domain 'contoso.com'
-                $insecureZone  = $results | Where-Object { $_.ZoneName -eq 'insecure.local' }
-                $insecureZone.RiskFactors | Should -Contain 'UnsecuredDynamicUpdate'
-                $insecureZone.RiskFactors | Should -Contain 'ZoneTransferToAnyServer'
-            }
+            $results       = Test-DSDNSSecurity -Domain 'contoso.com'
+            $insecureZone  = $results | Where-Object { $_.ZoneName -eq 'insecure.local' }
+            $insecureZone.RiskFactors | Should -Contain 'UnsecuredDynamicUpdate'
+            $insecureZone.RiskFactors | Should -Contain 'ZoneTransferToAnyServer'
         }
 
         It 'Insecure zone AllowsUnsecuredDynamic should be $true' {
-            InModuleScope DirectoryServicesToolkit {
-                $results      = Test-DSDNSSecurity -Domain 'contoso.com'
-                $insecureZone = $results | Where-Object { $_.ZoneName -eq 'insecure.local' }
-                $insecureZone.AllowsUnsecuredDynamic | Should -BeTrue
-            }
+            $results      = Test-DSDNSSecurity -Domain 'contoso.com'
+            $insecureZone = $results | Where-Object { $_.ZoneName -eq 'insecure.local' }
+            $insecureZone.AllowsUnsecuredDynamic | Should -BeTrue
         }
 
         It 'Insecure zone ZoneTransferPolicy should be ToAny' {
-            InModuleScope DirectoryServicesToolkit {
-                $results      = Test-DSDNSSecurity -Domain 'contoso.com'
-                $insecureZone = $results | Where-Object { $_.ZoneName -eq 'insecure.local' }
-                $insecureZone.ZoneTransferPolicy | Should -Be 'ToAny'
-            }
+            $results      = Test-DSDNSSecurity -Domain 'contoso.com'
+            $insecureZone = $results | Where-Object { $_.ZoneName -eq 'insecure.local' }
+            $insecureZone.ZoneTransferPolicy | Should -Be 'ToAny'
         }
 
         It '-Zone filter should return only the specified zone' {
-            InModuleScope DirectoryServicesToolkit {
-                $results = Test-DSDNSSecurity -Domain 'contoso.com' -Zone 'contoso.com'
-                $results.Count | Should -Be 1
-                $results[0].ZoneName | Should -Be 'contoso.com'
-            }
+            $results = Test-DSDNSSecurity -Domain 'contoso.com' -Zone 'contoso.com'
+            $results.Count | Should -Be 1
+            $results[0].ZoneName | Should -Be 'contoso.com'
         }
     }
 }
