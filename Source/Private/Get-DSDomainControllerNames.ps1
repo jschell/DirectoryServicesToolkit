@@ -9,7 +9,7 @@ This private function wraps [System.DirectoryServices.ActiveDirectory.Domain]::G
 so that callers can be mocked in unit tests without requiring a live domain connection.
 #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([System.Object[]])]
     Param
     (
         [Parameter(Mandatory)]
