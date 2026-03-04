@@ -6,17 +6,17 @@ function Unprotect-GPPPassword
     (
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [string]$CPassword,
+        [string]$CipherText,
 
         [Parameter(Mandatory)]
         [byte[]]$Key
     )
 
     # Pad to required Base64 block length
-    $mod     = $CPassword.Length % 4
-    if ($mod -gt 0) { $CPassword += '=' * (4 - $mod) }
+    $mod     = $CipherText.Length % 4
+    if ($mod -gt 0) { $CipherText += '=' * (4 - $mod) }
 
-    $bytes   = [Convert]::FromBase64String($CPassword)
+    $bytes   = [Convert]::FromBase64String($CipherText)
 
     $aes     = [System.Security.Cryptography.Aes]::Create()
     $aes.Key = $Key
@@ -162,7 +162,7 @@ function Find-DSGPPCredential
                 $decryptedPassword = $null
                 try
                 {
-                    $decryptedPassword = Unprotect-GPPPassword -CPassword $cpassword -Key $aesKey
+                    $decryptedPassword = Unprotect-GPPPassword -CipherText $cpassword -Key $aesKey
                 }
                 catch
                 {

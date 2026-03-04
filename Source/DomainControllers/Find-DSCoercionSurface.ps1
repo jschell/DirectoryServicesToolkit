@@ -75,10 +75,10 @@ Changelog:
     {
         $unconstrainedHosts = Invoke-DSDirectorySearch -LdapPath $ldapPath -Filter $ldapFilter -Properties $properties
 
-        foreach ($host in $unconstrainedHosts)
+        foreach ($entry in $unconstrainedHosts)
         {
-            $hostname = if ($null -ne $host['dnshostname'] -and $host['dnshostname'].Count -gt 0) { [string]$host['dnshostname'][0] } else { [string]$host['name'][0] }
-            $uac      = if ($null -ne $host['useraccountcontrol'] -and $host['useraccountcontrol'].Count -gt 0) { [int]$host['useraccountcontrol'][0] } else { 0 }
+            $hostname = if ($null -ne $entry['dnshostname'] -and $entry['dnshostname'].Count -gt 0) { [string]$entry['dnshostname'][0] } else { [string]$entry['name'][0] }
+            $uac      = if ($null -ne $entry['useraccountcontrol'] -and $entry['useraccountcontrol'].Count -gt 0) { [int]$entry['useraccountcontrol'][0] } else { 0 }
 
             # DC bit: SERVER_TRUST_ACCOUNT = 0x2000
             $isDC = [bool]($uac -band 0x2000)
@@ -113,7 +113,7 @@ Changelog:
             [void]$results.Add(
                 [PSCustomObject]@{
                     Hostname             = $hostname
-                    DistinguishedName    = [string]$host['distinguishedname'][0]
+                    DistinguishedName    = [string]$entry['distinguishedname'][0]
                     IsDomainController   = $isDC
                     UnconstrainedDelegate = $true
                     SpoolerState         = $spoolerState
