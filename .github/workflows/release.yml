@@ -134,7 +134,7 @@ jobs:
 
       - name: Full CI pipeline (lint → test → build)
         shell: pwsh
-        run: Invoke-Build CI
+        run: Invoke-Build CI -File ./build.ps1
 
       - name: Create release archive
         shell: pwsh
