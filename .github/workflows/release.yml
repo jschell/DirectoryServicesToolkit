@@ -98,9 +98,10 @@ jobs:
 
           TAG="v${NEW_VERSION}"
 
-          # Fail loudly if the tag already exists
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "::error::Tag ${TAG} already exists. Use [release] to re-publish or choose a different bump type."
+          # For version bumps, fail loudly if the tag already exists.
+          # For [release] (re-publish), allow overwriting the existing tag.
+          if [ "$BUMP_TYPE" != "release" ] && git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag ${TAG} already exists. Use [bump patch], [bump minor], or [bump major] to increment the version first."
             exit 1
           fi
 
@@ -168,6 +169,11 @@ jobs:
           VERSION="${{ needs.check-release.outputs.version }}"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Delete the remote tag first if re-releasing (tag already exists)
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            git push origin ":refs/tags/$TAG"
+            git tag -d "$TAG"
+          fi
           git tag -a "$TAG" -m "Release ${VERSION}"
           git push origin "$TAG"
           echo "Created and pushed tag: ${TAG}"
