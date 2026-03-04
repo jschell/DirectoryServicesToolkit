@@ -83,15 +83,16 @@ Invoke-ScriptAnalyzer -Path ./Source/ -Recurse -Fix
 ### Module import during development
 
 ```powershell
-# Development — import directly from source, no build step needed
-Import-Module ./Source/DirectoryServicesToolkit.psm1 -Force
+# Development — import via the manifest so ModuleVersion is read correctly.
+# Importing the .psm1 directly bypasses the manifest and shows version 0.0.
+Import-Module ./Source/DirectoryServicesToolkit.psd1 -Force
 
 # Verify functions exported correctly
 Get-Command -Module DirectoryServicesToolkit
 
 # Remove and reimport cleanly
 Remove-Module DirectoryServicesToolkit -ErrorAction SilentlyContinue
-Import-Module ./Source/DirectoryServicesToolkit.psm1 -Force
+Import-Module ./Source/DirectoryServicesToolkit.psd1 -Force
 ```
 
 The `Build` task produces `Output/DirectoryServicesToolkit.psm1` (all function source
