@@ -127,12 +127,7 @@ Describe 'Find-DSASREPRoastable' -Tag 'Unit', 'Security' {
 
         It 'Should return one result for the matching account' {
             InModuleScope DirectoryServicesToolkit {
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com' }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 $results = Find-DSASREPRoastable -Domain 'contoso.com'
                 $results.Count | Should -Be 1
@@ -158,13 +153,7 @@ Describe 'Find-DSASREPRoastable' -Tag 'Unit', 'Security' {
         It 'Should return empty result set when no accounts match' {
             InModuleScope DirectoryServicesToolkit {
                 Mock Invoke-DSDirectorySearch { return @() }
-
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com' }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 $results = Find-DSASREPRoastable -Domain 'contoso.com'
                 $results.Count | Should -Be 0

@@ -92,12 +92,7 @@ Describe 'Find-DSPasswordNotRequired' -Tag 'Unit', 'AccountHygiene' {
                     )
                 }
 
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com' }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
             }
         }
 
@@ -140,12 +135,7 @@ Describe 'Find-DSPasswordNotRequired' -Tag 'Unit', 'AccountHygiene' {
 
                 Mock Invoke-DSDirectorySearch { return $mockData }
 
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com' }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 { Find-DSPasswordNotRequired -Domain 'contoso.com' -WarningAction SilentlyContinue } |
                     Should -Not -Throw

@@ -85,7 +85,7 @@ Describe 'Find-DSADIDNSRecord' -Tag 'Unit', 'DNS' {
                 [System.DirectoryServices.ActiveDirectoryRights]::GenericWrite
                 [System.DirectoryServices.ActiveDirectoryRights]::GenericAll
             )
-            $matched = $flaggedRights | Where-Object { $rights -band $_ }
+            $matched = $flaggedRights | Where-Object { if ($_ -eq [System.DirectoryServices.ActiveDirectoryRights]::GenericAll) { $rights -eq $_ } else { [bool]($rights -band $_) } }
             $matched | Should -Not -BeNullOrEmpty
         }
 
@@ -97,7 +97,7 @@ Describe 'Find-DSADIDNSRecord' -Tag 'Unit', 'DNS' {
                 [System.DirectoryServices.ActiveDirectoryRights]::GenericWrite
                 [System.DirectoryServices.ActiveDirectoryRights]::GenericAll
             )
-            $matched = $flaggedRights | Where-Object { $rights -band $_ }
+            $matched = $flaggedRights | Where-Object { if ($_ -eq [System.DirectoryServices.ActiveDirectoryRights]::GenericAll) { $rights -eq $_ } else { [bool]($rights -band $_) } }
             $matched | Should -BeNullOrEmpty
         }
     }
@@ -153,21 +153,7 @@ Describe 'Find-DSADIDNSRecord' -Tag 'Unit', 'DNS' {
                     )
                 }
 
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                # Domain root for SID resolution
-                Mock New-Object {
-                    $fakeDomainRoot = [PSCustomObject]@{
-                        objectSid = [PSCustomObject]@{ Value = [byte[]](1, 4, 0, 0, 0, 0, 0, 5, 21, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0) }
-                    }
-                    $fakeDomainRoot | Add-Member -MemberType ScriptMethod -Name Dispose -Value {}
-                    return $fakeDomainRoot
-                } -ParameterFilter { $TypeName -match 'SecurityIdentifier' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com' }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 # NTAccount SID translation — return a non-excluded SID
                 Mock New-Object {

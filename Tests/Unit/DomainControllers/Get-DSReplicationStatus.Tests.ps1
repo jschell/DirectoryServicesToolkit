@@ -100,20 +100,9 @@ Describe 'Get-DSReplicationStatus' -Tag 'Unit', 'DomainControllers' {
         BeforeEach {
             InModuleScope DirectoryServicesToolkit {
 
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'placeholder' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeDomain = [PSCustomObject]@{
-                    Name             = 'contoso.com'
-                    DomainControllers = @([PSCustomObject]@{ Name = 'dc01.contoso.com' })
-                }
-                $fakeDomain | Add-Member -MemberType ScriptMethod -Name Dispose -Value {}
-
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeDomain }
-
-                $fakeDcObj = [PSCustomObject]@{ Name = 'dc01.contoso.com' }
-                $fakeDcObj | Add-Member -MemberType ScriptMethod -Name GetReplicationNeighbors -Value {
+                Mock Resolve-DSDomainName { return 'contoso.com' }
+                Mock Get-DSDomainControllerNames { return @('dc01.contoso.com') }
+                Mock Get-DSReplicationNeighborData {
                     return @(
                         [PSCustomObject]@{
                             SourceServer            = 'dc02.contoso.com'
@@ -132,11 +121,6 @@ Describe 'Get-DSReplicationStatus' -Tag 'Unit', 'DomainControllers' {
                             LastSyncResult          = 8453
                         }
                     )
-                }
-                $fakeDcObj | Add-Member -MemberType ScriptMethod -Name Dispose -Value {}
-
-                Mock ([System.DirectoryServices.ActiveDirectory.DomainController]::GetDomainController) {
-                    return $fakeDcObj
                 }
             }
         }

@@ -166,12 +166,7 @@ Describe 'Find-DSInterestingACE' -Tag 'Unit', 'Security' {
 
         It 'Should return result when GenericAll ACE exists' {
             InModuleScope DirectoryServicesToolkit {
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com'; objectSid = @{ Value = [byte[]](1..28) } }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 $results = Find-DSInterestingACE -Domain 'contoso.com'
                 $results | Should -Not -BeNullOrEmpty
@@ -192,12 +187,7 @@ Describe 'Find-DSInterestingACE' -Tag 'Unit', 'Security' {
                     )
                 }
 
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com'; objectSid = @{ Value = [byte[]](1..28) } }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 $results = Find-DSInterestingACE -Domain 'contoso.com'
                 $results.Count | Should -Be 0
@@ -218,12 +208,7 @@ Describe 'Find-DSInterestingACE' -Tag 'Unit', 'Security' {
                     )
                 }
 
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com'; objectSid = @{ Value = [byte[]](1..28) } }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 $results = Find-DSInterestingACE -Domain 'contoso.com'
                 $results.Count | Should -Be 0
@@ -244,12 +229,7 @@ Describe 'Find-DSInterestingACE' -Tag 'Unit', 'Security' {
                     )
                 }
 
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com'; objectSid = @{ Value = [byte[]](1..28) } }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 $results = Find-DSInterestingACE -Domain 'contoso.com' -IncludeInherited
                 $results.Count | Should -Be 1

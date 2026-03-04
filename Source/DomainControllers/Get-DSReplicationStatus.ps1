@@ -62,14 +62,10 @@ Changelog:
 
     Begin
     {
-        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
-
         try
         {
-            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
-            $DomainName  = $DomainEntry.Name
-            $dcNames     = @($DomainEntry.DomainControllers | ForEach-Object { $_.Name })
-            $DomainEntry.Dispose()
+            $DomainName = Resolve-DSDomainName -Domain $Domain
+            $dcNames    = @(Get-DSDomainControllerNames -Domain $Domain)
         }
         catch
         {
@@ -86,50 +82,39 @@ Changelog:
         {
             Write-Verbose "Querying replication neighbors for: $dcName"
 
-            $dcContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('DirectoryServer', $dcName)
-
             try
             {
-                $dcObj = [System.DirectoryServices.ActiveDirectory.DomainController]::GetDomainController($dcContext)
+                $neighbors = Get-DSReplicationNeighborData -DcName $dcName
 
-                try
+                foreach ($neighbor in $neighbors)
                 {
-                    $neighbors = $dcObj.GetReplicationNeighbors()
+                    $lastResult   = [int]$neighbor.LastSyncResult
+                    $consFailures = [int]$neighbor.ConsecutiveFailureCount
+                    $isFailing    = ($consFailures -gt 0 -or $lastResult -ne 0)
 
-                    foreach ($neighbor in $neighbors)
+                    if ($ShowFailuresOnly -and -not $isFailing) { continue }
+
+                    $msg = if ($lastResult -eq 0)
                     {
-                        $lastResult   = [int]$neighbor.LastSyncResult
-                        $consFailures = [int]$neighbor.ConsecutiveFailureCount
-                        $isFailing    = ($consFailures -gt 0 -or $lastResult -ne 0)
-
-                        if ($ShowFailuresOnly -and -not $isFailing) { continue }
-
-                        $msg = if ($lastResult -eq 0)
-                        {
-                            'Success'
-                        }
-                        else
-                        {
-                            try   { ([System.ComponentModel.Win32Exception]$lastResult).Message }
-                            catch { "Win32 error $lastResult" }
-                        }
-
-                        [PSCustomObject]@{
-                            DCName                = $dcName
-                            Partner               = $neighbor.SourceServer
-                            NamingContext         = $neighbor.PartitionName
-                            LastAttempted         = $neighbor.LastAttemptedSync
-                            LastSuccessful        = $neighbor.LastSuccessfulSync
-                            ConsecutiveFailures   = $consFailures
-                            LastSyncResult        = $lastResult
-                            LastSyncResultMessage = $msg
-                            IsFailing             = $isFailing
-                        }
+                        'Success'
                     }
-                }
-                finally
-                {
-                    $dcObj.Dispose()
+                    else
+                    {
+                        try   { ([System.ComponentModel.Win32Exception]$lastResult).Message }
+                        catch { "Win32 error $lastResult" }
+                    }
+
+                    [PSCustomObject]@{
+                        DCName                = $dcName
+                        Partner               = $neighbor.SourceServer
+                        NamingContext         = $neighbor.PartitionName
+                        LastAttempted         = $neighbor.LastAttemptedSync
+                        LastSuccessful        = $neighbor.LastSuccessfulSync
+                        ConsecutiveFailures   = $consFailures
+                        LastSyncResult        = $lastResult
+                        LastSyncResultMessage = $msg
+                        IsFailing             = $isFailing
+                    }
                 }
             }
             catch

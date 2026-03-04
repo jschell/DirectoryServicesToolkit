@@ -72,13 +72,9 @@ Changelog:
 
     Begin
     {
-        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
-
         try
         {
-            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
-            $DomainName  = $DomainEntry.Name
-            $DomainEntry.Dispose()
+            $DomainName = Resolve-DSDomainName -Domain $Domain
         }
         catch
         {
@@ -93,10 +89,10 @@ Changelog:
         # ── Rights that are dangerous on zone containers ──────────────────────
 
         $flaggedRights = @(
+            [System.DirectoryServices.ActiveDirectoryRights]::GenericAll
             [System.DirectoryServices.ActiveDirectoryRights]::CreateChild
             [System.DirectoryServices.ActiveDirectoryRights]::WriteProperty
             [System.DirectoryServices.ActiveDirectoryRights]::GenericWrite
-            [System.DirectoryServices.ActiveDirectoryRights]::GenericAll
         )
 
         # ── Build privileged SID exclusion set ────────────────────────────────
@@ -206,7 +202,15 @@ Changelog:
                     $flaggedRightName = $null
                     foreach ($right in $flaggedRights)
                     {
-                        if ($ace.ActiveDirectoryRights -band $right)
+                        $matched = if ($right -eq [System.DirectoryServices.ActiveDirectoryRights]::GenericAll)
+                        {
+                            $ace.ActiveDirectoryRights -eq $right
+                        }
+                        else
+                        {
+                            [bool]($ace.ActiveDirectoryRights -band $right)
+                        }
+                        if ($matched)
                         {
                             $hasFlaggedRight  = $true
                             $flaggedRightName = $right.ToString()
