@@ -222,8 +222,9 @@ DirectoryServicesToolkit/
 - **Unit-testable** — internal calls use mockable private helpers (`Invoke-DSDirectorySearch`, `Get-DSObjectAcl`)
 - **LDAP injection safe** — user-supplied filter values are escaped before embedding in LDAP queries
 
----
+--- 
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
