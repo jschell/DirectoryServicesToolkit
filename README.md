@@ -54,6 +54,8 @@ The build step concatenates all function files into a single `Output/DirectorySe
 
 ### Security
 
+#### Delegation & Kerberos
+
 | Function | Description |
 |---|---|
 | `Find-DSDelegation` | Enumerates unconstrained, constrained, and resource-based constrained delegation configurations |
@@ -62,6 +64,25 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Find-DSInterestingACE` | Identifies non-default ACEs on high-value objects (GenericAll, WriteDacl, etc.) |
 | `Find-DSBitlockerKey` | Enumerates BitLocker recovery key objects stored in AD |
 | `ConvertFrom-TrustAttributeValue` | Decodes a raw `trustAttributes` integer to a human-readable flag list |
+
+#### AD CS / PKI
+
+| Function | Description |
+|---|---|
+| `Find-DSADCSTemplate` | Enumerates certificate templates for ESC1, ESC2, and ESC3 vulnerability conditions |
+| `Find-DSADCSEnrollmentAgents` | Identifies templates granting Certificate Request Agent (enrollment agent) rights (ESC3) |
+| `Get-DSADCSAuthority` | Enumerates Enterprise CA servers with certificate expiry and web enrollment endpoint details |
+| `Test-DSADCSACL` | Reviews CA object ACLs for non-admin principals with ManageCA or ManageCertificates rights (ESC7) |
+| `Find-DSADCSWebEnrollment` | Detects HTTP (non-HTTPS) web enrollment endpoints vulnerable to NTLM relay (ESC8) |
+
+#### Credential Exposure & Replication
+
+| Function | Description |
+|---|---|
+| `Find-DSGPPCredential` | Scans SYSVOL for GPP XML files containing cPassword values and decrypts them |
+| `Find-DSDCSyncRights` | Identifies non-privileged principals with DS-Replication-Get-Changes-All on the domain NC root |
+| `Get-DSLAPSCoverage` | Assesses LAPS deployment coverage across all computer objects (legacy and Windows LAPS) |
+| `Test-DSLAPSPermissions` | Reviews computer object ACLs for overly-permissive LAPS password attribute read rights |
 
 ### Enumeration
 
@@ -76,6 +97,8 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Get-DSUserByProperty` | Queries user objects with flexible property-based filtering |
 | `Get-DSKeyCredLink` | Enumerates `msDS-KeyCredentialLink` attributes (Shadow Credentials attack surface) |
 | `Get-DSSelectiveAuth` | Checks selective authentication settings on forest trusts |
+| `Get-DSMachineAccountQuota` | Checks `ms-DS-MachineAccountQuota` on the domain root (RBCD/coercion prerequisite) |
+| `Find-DSUserCreatedComputers` | Identifies computer accounts created by non-admin users via `ms-DS-CreatorSID` |
 
 ### Account Hygiene
 
@@ -85,6 +108,7 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Find-DSPasswordNotRequired` | Finds accounts with the `PASSWD_NOTREQD` UAC flag set |
 | `Find-DSPasswordNeverExpires` | Finds accounts with `DONT_EXPIRE_PASSWORD` set, with SPN cross-reference |
 | `Find-DSStaleAccounts` | Identifies accounts inactive beyond a configurable threshold |
+| `Get-DSProtectedUsersGaps` | Flags privileged accounts not in Protected Users; detects SPN/delegation incompatibilities |
 
 ### Trusts
 
@@ -109,6 +133,13 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Get-DSSysvolHealth` | Checks SYSVOL/NETLOGON share availability, SysvolReady registry flag, and DFSR replication state |
 | `Get-DSResponseTime` | Measures LDAP (389) and Global Catalog (3268) response latency across DCs |
 | `Get-OSLevelDomainController` | Returns OS version information for all DCs in the domain |
+| `Test-DSLDAPSigning` | Reads `ldap server integrity` from each DC's registry (0=Critical, 1=Medium, 2=Compliant) |
+| `Test-DSLDAPChannelBinding` | Reads `LdapEnforceChannelBinding` from each DC's registry (0=Critical, 1=Medium, 2=Compliant) |
+| `Test-DSLDAPSecurity` | Combined signing + channel binding wrapper with per-DC composite risk score |
+| `Get-DSNTLMPolicy` | Reads `LmCompatibilityLevel`, `NoLMHash`, and `NtlmMinSec` flags from each DC's registry |
+| `Find-DSNTLMRestrictions` | Scans SYSVOL GptTmpl.inf files for NTLM-related security option settings |
+| `Test-DSPrintSpooler` | Queries Print Spooler service state via CIM — Critical on DCs (MS-RPRN coercion surface) |
+| `Find-DSCoercionSurface` | Composites Print Spooler state with unconstrained delegation for a combined coercion risk score |
 
 ### Reporting
 
@@ -131,24 +162,51 @@ Find-DSKerberoastable -Domain 'contoso.com'
 # Check all delegation configurations
 Find-DSDelegation -Domain 'contoso.com'
 
+# AD CS — enumerate vulnerable certificate templates
+Find-DSADCSTemplate -Domain 'contoso.com' | Where-Object { $_.IsVulnerable }
+
+# AD CS — find HTTP enrollment endpoints (ESC8 NTLM relay targets)
+Find-DSADCSWebEnrollment -Domain 'contoso.com' | Where-Object { $_.NTLMRelayRisk }
+
+# GPP credentials in SYSVOL (suppress plaintext output)
+Find-DSGPPCredential -Domain 'contoso.com' -Redact
+
+# DCSync rights — flag non-privileged replication principals
+Find-DSDCSyncRights -Domain 'contoso.com'
+
+# LAPS deployment gaps
+Get-DSLAPSCoverage -Domain 'contoso.com' | Where-Object { -not $_.HasLAPS }
+
+# Machine account quota
+Get-DSMachineAccountQuota -Domain 'contoso.com'
+
+# LDAP signing + channel binding assessment
+Test-DSLDAPSecurity -Domain 'contoso.com' | Where-Object { -not $_.IsFullyCompliant }
+
+# NTLM policy per DC
+Get-DSNTLMPolicy -Domain 'contoso.com' | Where-Object { $_.LmCompatibilityLevel -lt 5 }
+
+# Print Spooler coercion surface on DCs
+Test-DSPrintSpooler -Domain 'contoso.com' | Where-Object { $_.SpoolerRunning }
+
+# Composite coercion risk (Spooler + unconstrained delegation)
+Find-DSCoercionSurface -Domain 'contoso.com' | Where-Object { $_.CompositeRisk -eq 'Critical' }
+
+# Privileged accounts not in Protected Users
+Get-DSProtectedUsersGaps -Domain 'contoso.com' | Where-Object { -not $_.InProtectedUsers }
+
 # Evaluate trust SID filtering
 Test-DSTrustSIDFiltering -Domain 'contoso.com'
-
-# Check DNS zone security
-Test-DSDNSSecurity -Domain 'contoso.com'
 
 # Capture a security baseline
 Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath C:\Baselines
 
-# Compare two baselines
-Compare-DSBaseline -BaselinePath C:\Baselines\contoso-old.json `
-                   -CurrentPath  C:\Baselines\contoso-new.json
-
 # Generate an HTML report from multiple findings
 $findings = @{
     Kerberoastable = Find-DSKerberoastable -Domain 'contoso.com'
-    Delegation     = Find-DSDelegation     -Domain 'contoso.com'
-    StaleAccounts  = Find-DSStaleAccounts  -Domain 'contoso.com'
+    ADCSTemplates  = Find-DSADCSTemplate   -Domain 'contoso.com' | Where-Object { $_.IsVulnerable }
+    DCSync         = Find-DSDCSyncRights   -Domain 'contoso.com'
+    LAPSGaps       = Get-DSLAPSCoverage    -Domain 'contoso.com' | Where-Object { -not $_.HasLAPS }
 }
 New-DSAssessmentReport -InputObject $findings -Domain 'contoso.com' -OutputPath C:\Reports
 ```
