@@ -1,6 +1,7 @@
 BeforeAll {
     Import-Module "$PSScriptRoot/../../../Source/DirectoryServicesToolkit.psm1" -Force
     . "$PSScriptRoot/../../TestHelpers/Mocks.ps1"
+    Import-Module CimCmdlets -ErrorAction SilentlyContinue
 }
 
 Describe 'Get-DSSysvolHealth' -Tag 'Unit', 'DomainControllers' {

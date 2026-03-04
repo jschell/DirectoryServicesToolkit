@@ -55,7 +55,7 @@ Describe 'Find-DSDelegation' -Tag 'Unit', 'Security' {
                         }
                     )
                 }
-                Mock Resolve-DomainName { return 'contoso.com' }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 # Build a result object directly to validate schema
                 $result = [PSCustomObject]@{

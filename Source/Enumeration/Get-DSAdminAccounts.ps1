@@ -97,8 +97,8 @@ Changelog:
         foreach ($groupName in $Groups)
         {
             $groupFilter = "(&(objectClass=group)(sAMAccountName=$groupName))"
-            $groupResults = Invoke-DSDirectorySearch -LdapPath $ldapPath `
-                -Filter $groupFilter -Properties @('distinguishedName')
+            $groupResults = @(Invoke-DSDirectorySearch -LdapPath $ldapPath `
+                -Filter $groupFilter -Properties @('distinguishedName'))
 
             if ($groupResults.Count -gt 0)
             {
