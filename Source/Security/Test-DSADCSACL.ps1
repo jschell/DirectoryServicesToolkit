@@ -100,7 +100,7 @@ Changelog:
 
             Write-Verbose "Reviewing ACL on CA: $caName"
 
-            $acl = Get-DSObjectAcl -DistinguishedName $caDN
+            $acl = Get-DSObjectAcl -LdapPath "LDAP://$caDN"
 
             foreach ($ace in $acl)
             {

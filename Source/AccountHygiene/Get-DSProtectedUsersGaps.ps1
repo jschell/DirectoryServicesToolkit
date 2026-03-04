@@ -90,7 +90,7 @@ Changelog:
 
         if ($null -ne $puResult -and $puResult.Count -gt 0)
         {
-            $memberList = $puResult[0]['member']
+            $memberList = @($puResult)[0]['member']
             if ($null -ne $memberList)
             {
                 foreach ($memberDN in $memberList)
@@ -112,7 +112,7 @@ Changelog:
 
             if ($null -eq $groupResult -or $groupResult.Count -eq 0) { continue }
 
-            $memberDNs = $groupResult[0]['member']
+            $memberDNs = @($groupResult)[0]['member']
             if ($null -eq $memberDNs) { continue }
 
             foreach ($memberDN in $memberDNs)
@@ -126,7 +126,7 @@ Changelog:
 
                 if ($null -eq $userResult -or $userResult.Count -eq 0) { continue }
 
-                $user = $userResult[0]
+                $user = @($userResult)[0]
 
                 $uac  = if ($null -ne $user['useraccountcontrol'] -and $user['useraccountcontrol'].Count -gt 0) { [int]$user['useraccountcontrol'][0] } else { 0 }
                 $spns = if ($null -ne $user['serviceprincipalname'] -and $user['serviceprincipalname'].Count -gt 0) { @($user['serviceprincipalname']) } else { @() }

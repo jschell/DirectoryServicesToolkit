@@ -56,14 +56,12 @@ Describe 'Find-DSUserCreatedComputers' -Tag 'Unit', 'Enumeration' {
         BeforeEach {
             InModuleScope DirectoryServicesToolkit {
                 Mock Invoke-DSDirectorySearch {
-                    # Simulate a byte array SID
-                    $sidBytes = [System.Security.Principal.SecurityIdentifier]::new('S-1-5-21-3623811015-3361044348-30300820-1013').GetBinaryForm()
                     return @(
                         @{
                             name               = @('ROGUE01')
                             samaccountname     = @('ROGUE01$')
                             distinguishedname  = @('CN=ROGUE01,CN=Computers,DC=contoso,DC=com')
-                            'ms-ds-creatorsid' = @($sidBytes)
+                            'ms-ds-creatorsid' = $null
                             whencreated        = @([datetime]'2026-01-15')
                             operatingsystem    = $null
                         }

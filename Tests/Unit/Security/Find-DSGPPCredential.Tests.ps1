@@ -40,14 +40,14 @@ Describe 'Find-DSGPPCredential' -Tag 'Unit', 'Security' {
     Context 'GPO GUID extraction from path' {
 
         It 'Should extract GPO GUID from file path' {
-            $path    = '\\contoso.com\SYSVOL\contoso.com\Policies\{12345678-ABCD-1234-EFGH-123456789012}\Machine\Preferences\Groups\Groups.xml'
+            $path    = '\\contoso.com\SYSVOL\contoso.com\Policies\{12345678-ABCD-1234-EF01-123456789012}\Machine\Preferences\Groups\Groups.xml'
             $gpoGuid = $null
             if ($path -match '\{([0-9A-Fa-f-]{36})\}')
             {
                 $gpoGuid = $Matches[1]
             }
             $gpoGuid | Should -Not -BeNullOrEmpty
-            $gpoGuid | Should -Be '12345678-ABCD-1234-EFGH-123456789012'
+            $gpoGuid | Should -Be '12345678-ABCD-1234-EF01-123456789012'
         }
 
         It 'Should return null when path contains no GUID' {
