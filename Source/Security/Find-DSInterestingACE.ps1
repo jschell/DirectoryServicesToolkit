@@ -95,13 +95,9 @@ Changelog:
 
     Begin
     {
-        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
-
         try
         {
-            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
-            $DomainName  = $DomainEntry.Name
-            $DomainEntry.Dispose()
+            $DomainName = Resolve-DSDomainName -Domain $Domain
         }
         catch
         {

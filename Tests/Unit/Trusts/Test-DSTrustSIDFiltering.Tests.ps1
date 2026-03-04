@@ -166,12 +166,7 @@ Describe 'Test-DSTrustSIDFiltering' -Tag 'Unit', 'Trusts' {
                     )
                 }
 
-                Mock New-Object {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com' }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
             }
         }
 

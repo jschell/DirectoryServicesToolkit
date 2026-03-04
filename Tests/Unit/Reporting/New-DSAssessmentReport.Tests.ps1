@@ -35,15 +35,15 @@ Describe 'New-DSAssessmentReport' -Tag 'Unit', 'Reporting' {
             foreach ($kvp in $input.GetEnumerator()) { $sections[$kvp.Key] = @($kvp.Value) }
 
             $sections.Count | Should -Be 2
-            ($sections.ContainsKey('Kerberoastable')) | Should -BeTrue
-            ($sections.ContainsKey('Delegation'))     | Should -BeTrue
+            ($sections.Contains('Kerberoastable')) | Should -BeTrue
+            ($sections.Contains('Delegation'))     | Should -BeTrue
         }
 
         It 'Non-hashtable flat array should produce single Ungrouped section' {
             $items    = @([PSCustomObject]@{ Name = 'obj1' }, [PSCustomObject]@{ Name = 'obj2' })
             $sections = [ordered]@{ 'Ungrouped' = $items }
             $sections.Count         | Should -Be 1
-            $sections.ContainsKey('Ungrouped') | Should -BeTrue
+            $sections.Contains('Ungrouped') | Should -BeTrue
         }
     }
 

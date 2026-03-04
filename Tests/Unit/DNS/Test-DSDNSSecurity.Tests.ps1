@@ -218,21 +218,8 @@ Describe 'Test-DSDNSSecurity' -Tag 'Unit', 'DNS' {
 
                 Mock Remove-CimSession {}
 
-                Mock New-Object {
-                    $fake = [PSCustomObject]@{
-                        Name           = 'contoso.com'
-                        PdcRoleOwner   = [PSCustomObject]@{ Name = 'dc01.contoso.com' }
-                    }
-                    $fake | Add-Member -MemberType ScriptMethod -Name Dispose -Value {}
-                    return $fake
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{
-                    Name         = 'contoso.com'
-                    PdcRoleOwner = [PSCustomObject]@{ Name = 'dc01.contoso.com' }
-                }
-                $fakeEntry | Add-Member -MemberType ScriptMethod -Name Dispose -Value {}
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
+                Mock Get-DSPdcEmulatorName { return 'dc01.contoso.com' }
             }
         }
 

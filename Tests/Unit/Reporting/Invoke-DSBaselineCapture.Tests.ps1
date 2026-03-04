@@ -40,11 +40,11 @@ Describe 'Invoke-DSBaselineCapture' -Tag 'Unit', 'Reporting' {
                 CaptureErrors = [ordered]@{}
             }
 
-            $snapshot.ContainsKey('Schema')        | Should -BeTrue
-            $snapshot.ContainsKey('CapturedAt')    | Should -BeTrue
-            $snapshot.ContainsKey('Domain')        | Should -BeTrue
-            $snapshot.ContainsKey('Indicators')    | Should -BeTrue
-            $snapshot.ContainsKey('CaptureErrors') | Should -BeTrue
+            $snapshot.Contains('Schema')        | Should -BeTrue
+            $snapshot.Contains('CapturedAt')    | Should -BeTrue
+            $snapshot.Contains('Domain')        | Should -BeTrue
+            $snapshot.Contains('Indicators')    | Should -BeTrue
+            $snapshot.Contains('CaptureErrors') | Should -BeTrue
         }
 
         It 'Schema version should be 1.0' {

@@ -70,13 +70,9 @@ Changelog:
 
     Begin
     {
-        $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
-
         try
         {
-            $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
-            $DomainName  = $DomainEntry.Name
-            $DomainEntry.Dispose()
+            $DomainName = Resolve-DSDomainName -Domain $Domain
         }
         catch
         {
@@ -221,7 +217,7 @@ Internal helper — converts an AD negative 100-nanosecond interval to a TimeSpa
     if ($null -eq $Value) { return [TimeSpan]::Zero }
 
     $ticks = 0
-    if ($Value -is [System.DirectoryServices.LargeInteger])
+    if ($null -ne $Value -and $Value.GetType().Name -eq 'LargeInteger')
     {
         # COM LargeInteger from ADSI property bag
         $high  = $Value.GetType().InvokeMember('HighPart', [System.Reflection.BindingFlags]::GetProperty, $null, $Value, $null)

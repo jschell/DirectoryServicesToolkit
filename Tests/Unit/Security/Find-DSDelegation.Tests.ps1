@@ -27,28 +27,13 @@ Describe 'Find-DSDelegation' -Tag 'Unit', 'Security' {
                     return @()
                 }
 
-                Mock New-Object {
-                    param($TypeName)
-                    if ($TypeName -match 'DirectoryContext')
-                    {
-                        return [PSCustomObject]@{ }
-                    }
-                    return Microsoft.PowerShell.Utility\New-Object -TypeName $TypeName
-                } -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]) {
-                    return [PSCustomObject]@{ Name = 'contoso.com' }
-                }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
             }
         }
 
         It 'Should return PSCustomObject results' {
             InModuleScope DirectoryServicesToolkit {
-                Mock New-Object { return [PSCustomObject]@{ Name = 'contoso.com' } } `
-                    -ParameterFilter { $TypeName -match 'DirectoryContext' }
-
-                $fakeEntry = [PSCustomObject]@{ Name = 'contoso.com' }
-                Mock ([System.DirectoryServices.ActiveDirectory.Domain]::GetDomain) { return $fakeEntry }
+                Mock Resolve-DSDomainName { return 'contoso.com' }
 
                 $result = Find-DSDelegation -Domain 'contoso.com' -DelegationType Unconstrained
                 $result | Should -Not -BeNullOrEmpty
@@ -184,12 +169,12 @@ Describe 'Find-DSDelegation' -Tag 'Unit', 'Security' {
         It 'DelegationType should accept valid values' {
             foreach ($type in @('Unconstrained', 'Constrained', 'RBCD', 'All'))
             {
-                { [ValidateSet('Unconstrained', 'Constrained', 'RBCD', 'All')]$_ = $type } | Should -Not -Throw
+                { [ValidateSet('Unconstrained', 'Constrained', 'RBCD', 'All')]$val = $type } | Should -Not -Throw
             }
         }
 
         It 'DelegationType should reject invalid values' {
-            { [ValidateSet('Unconstrained', 'Constrained', 'RBCD', 'All')]$_ = 'Invalid' } | Should -Throw
+            { [ValidateSet('Unconstrained', 'Constrained', 'RBCD', 'All')]$val = 'Invalid' } | Should -Throw
         }
     }
 }

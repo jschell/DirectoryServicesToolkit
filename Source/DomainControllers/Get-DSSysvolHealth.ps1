@@ -67,13 +67,10 @@ Changelog:
         # If ComputerName was not supplied, enumerate DCs from the domain
         if (-not $PSBoundParameters.ContainsKey('ComputerName'))
         {
-            $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
-
             try
             {
-                $DomainEntry = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
-                $DomainEntry.DomainControllers | ForEach-Object { [void]$allDcs.Add($_.Name) }
-                $DomainEntry.Dispose()
+                $dcNamesFromDomain = Get-DSDomainControllerNames -Domain $Domain
+                $dcNamesFromDomain | ForEach-Object { [void]$allDcs.Add($_) }
             }
             catch
             {
