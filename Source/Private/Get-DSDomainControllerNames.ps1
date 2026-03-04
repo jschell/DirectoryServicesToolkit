@@ -18,7 +18,7 @@ so that callers can be mocked in unit tests without requiring a live domain conn
 
     $DomainContext = New-Object System.DirectoryServices.ActiveDirectory.DirectoryContext('Domain', $Domain)
     $DomainEntry   = [System.DirectoryServices.ActiveDirectory.Domain]::GetDomain($DomainContext)
-    $Names         = @($DomainEntry.DomainControllers | ForEach-Object { $_.Name })
+    [string[]]$Names = @($DomainEntry.DomainControllers | ForEach-Object { $_.Name })
     $DomainEntry.Dispose()
     return $Names
 }
