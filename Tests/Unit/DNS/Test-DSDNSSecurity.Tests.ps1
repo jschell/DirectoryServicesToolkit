@@ -1,7 +1,14 @@
 BeforeAll {
     Import-Module "$PSScriptRoot/../../../Source/DirectoryServicesToolkit.psm1" -Force
     . "$PSScriptRoot/../../TestHelpers/Mocks.ps1"
-    Import-Module CimCmdlets -ErrorAction SilentlyContinue
+
+    # CIM cmdlets are Windows-only; define global stubs on Linux so Pester can mock them
+    if (-not (Get-Command Get-CimInstance -ErrorAction SilentlyContinue))
+    {
+        function global:New-CimSession     { [CmdletBinding()] param([string]$ComputerName, [hashtable]$SessionOption) }
+        function global:Get-CimInstance    { [CmdletBinding()] param($ClassName, $Namespace, $CimSession, $Filter, $Property) }
+        function global:Remove-CimSession  { [CmdletBinding()] param($CimSession) }
+    }
 }
 
 Describe 'Test-DSDNSSecurity' -Tag 'Unit', 'DNS' {
