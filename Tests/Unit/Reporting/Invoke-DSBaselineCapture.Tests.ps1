@@ -93,57 +93,45 @@ Describe 'Invoke-DSBaselineCapture' -Tag 'Unit', 'Reporting' {
         }
 
         It 'Should return a file path string' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir
-                $result | Should -BeOfType [string]
-            }
+            $result = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir
+            $result | Should -BeOfType [string]
         }
 
         It 'Returned path should point to an existing file' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir
-                Test-Path $result | Should -BeTrue
-            }
+            $result = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir
+            Test-Path $result | Should -BeTrue
         }
 
         It 'Written file should be valid JSON' {
-            InModuleScope DirectoryServicesToolkit {
-                $result  = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir
-                $content = Get-Content $result -Raw
-                { $content | ConvertFrom-Json } | Should -Not -Throw
-            }
+            $result  = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir
+            $content = Get-Content $result -Raw
+            { $content | ConvertFrom-Json } | Should -Not -Throw
         }
 
         It 'JSON should contain AdminAccounts indicator' {
-            InModuleScope DirectoryServicesToolkit {
-                $result  = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir
-                $json    = Get-Content $result -Raw | ConvertFrom-Json
-                $json.Indicators.AdminAccounts | Should -Not -BeNullOrEmpty
-            }
+            $result  = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir
+            $json    = Get-Content $result -Raw | ConvertFrom-Json
+            $json.Indicators.AdminAccounts | Should -Not -BeNullOrEmpty
         }
 
         It '-Indicators subset should capture only specified indicators' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir `
-                    -Indicators 'AdminAccounts', 'Trusts'
-                $json   = Get-Content $result -Raw | ConvertFrom-Json
-                ($json.Indicators.PSObject.Properties.Name -contains 'AdminAccounts') | Should -BeTrue
-                ($json.Indicators.PSObject.Properties.Name -contains 'Trusts')        | Should -BeTrue
-                ($json.Indicators.PSObject.Properties.Name -contains 'Delegation')    | Should -BeFalse
-            }
+            $result = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir `
+                -Indicators 'AdminAccounts', 'Trusts'
+            $json   = Get-Content $result -Raw | ConvertFrom-Json
+            ($json.Indicators.PSObject.Properties.Name -contains 'AdminAccounts') | Should -BeTrue
+            ($json.Indicators.PSObject.Properties.Name -contains 'Trusts')        | Should -BeTrue
+            ($json.Indicators.PSObject.Properties.Name -contains 'Delegation')    | Should -BeFalse
         }
 
         It 'Failed indicator should be recorded in CaptureErrors and not abort capture' {
-            InModuleScope DirectoryServicesToolkit {
-                Mock Find-DSDelegation { throw 'Simulated failure' }
+            Mock Find-DSDelegation -ModuleName DirectoryServicesToolkit { throw 'Simulated failure' }
 
-                $result = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir `
-                    -Indicators 'AdminAccounts', 'Delegation' -WarningAction SilentlyContinue
-                $json   = Get-Content $result -Raw | ConvertFrom-Json
+            $result = Invoke-DSBaselineCapture -Domain 'contoso.com' -OutputPath $script:tempDir `
+                -Indicators 'AdminAccounts', 'Delegation' -WarningAction SilentlyContinue
+            $json   = Get-Content $result -Raw | ConvertFrom-Json
 
-                $json.CaptureErrors.Delegation | Should -Not -BeNullOrEmpty
-                ($json.Indicators.PSObject.Properties.Name -contains 'AdminAccounts') | Should -BeTrue
-            }
+            $json.CaptureErrors.Delegation | Should -Not -BeNullOrEmpty
+            ($json.Indicators.PSObject.Properties.Name -contains 'AdminAccounts') | Should -BeTrue
         }
     }
 }

@@ -50,7 +50,7 @@ Describe 'Get-DSGPO' -Tag 'Unit', 'Enumeration' {
 
         It 'Should parse a simple gpLink string into GUID and option' {
             $gpLinkStr    = '[LDAP://cn={A1B2C3D4-0000-0000-0000-000000000001},cn=policies,cn=system,DC=contoso,DC=com;0]'
-            $pattern      = '\[LDAP://[^;]+cn=(\{[^}]+\})[^;]*;(\d+)\]'
+            $pattern      = '\[LDAP://cn=(\{[^}]+\})[^;]*;(\d+)\]'
             $matches2     = [regex]::Matches($gpLinkStr, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
             $matches2.Count            | Should -Be 1
@@ -81,7 +81,7 @@ Describe 'Get-DSGPO' -Tag 'Unit', 'Enumeration' {
 
         It 'Should parse multiple links in a single gpLink string' {
             $gpLinkStr = '[LDAP://cn={GUID1},cn=policies,cn=system,DC=contoso,DC=com;0][LDAP://cn={GUID2},cn=policies,cn=system,DC=contoso,DC=com;2]'
-            $pattern   = '\[LDAP://[^;]+cn=(\{[^}]+\})[^;]*;(\d+)\]'
+            $pattern   = '\[LDAP://cn=(\{[^}]+\})[^;]*;(\d+)\]'
             $matches2  = [regex]::Matches($gpLinkStr, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
             $matches2.Count | Should -Be 2
         }

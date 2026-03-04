@@ -106,8 +106,8 @@ Changelog:
         foreach ($groupName in $protectedGroupNames)
         {
             $groupFilter  = "(&(objectClass=group)(sAMAccountName=$groupName))"
-            $groupResults = Invoke-DSDirectorySearch -LdapPath $ldapPath `
-                -Filter $groupFilter -Properties @('distinguishedName')
+            $groupResults = @(Invoke-DSDirectorySearch -LdapPath $ldapPath `
+                -Filter $groupFilter -Properties @('distinguishedName'))
 
             if ($groupResults.Count -gt 0)
             {
@@ -117,8 +117,8 @@ Changelog:
             {
                 # krbtgt is a user object; also try CN=krbtgt lookup
                 $krbtgtFilter  = "(&(objectClass=user)(sAMAccountName=$groupName))"
-                $krbtgtResults = Invoke-DSDirectorySearch -LdapPath $ldapPath `
-                    -Filter $krbtgtFilter -Properties @('distinguishedName')
+                $krbtgtResults = @(Invoke-DSDirectorySearch -LdapPath $ldapPath `
+                    -Filter $krbtgtFilter -Properties @('distinguishedName'))
                 if ($krbtgtResults.Count -gt 0)
                 {
                     [void]$groupDns.Add([string]$krbtgtResults[0]['distinguishedname'][0])

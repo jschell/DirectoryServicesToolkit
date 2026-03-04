@@ -59,74 +59,62 @@ Describe 'New-DSAssessmentReport' -Tag 'Unit', 'Reporting' {
         }
 
         It 'Should write an HTML file and return its path' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{
-                    AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1'; Enabled = $true })
-                }
-                $result = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
-                    -Format HTML -Domain 'contoso.com'
-                $result    | Should -Not -BeNullOrEmpty
-                Test-Path $result | Should -BeTrue
+            $findings = @{
+                AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1'; Enabled = $true })
             }
+            $result = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
+                -Format HTML -Domain 'contoso.com'
+            $result    | Should -Not -BeNullOrEmpty
+            Test-Path $result | Should -BeTrue
         }
 
         It 'HTML file should contain the report title' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{
-                    AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1'; Enabled = $true })
-                }
-                $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
-                    -Format HTML -Title 'Custom Report Title' -Domain 'contoso.com'
-                $content = Get-Content $result -Raw
-                $content | Should -Match 'Custom Report Title'
+            $findings = @{
+                AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1'; Enabled = $true })
             }
+            $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
+                -Format HTML -Title 'Custom Report Title' -Domain 'contoso.com'
+            $content = Get-Content $result -Raw
+            $content | Should -Match 'Custom Report Title'
         }
 
         It 'HTML file should contain section header for each input key' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{
-                    Kerberoastable = @([PSCustomObject]@{ SamAccountName = 'svc1' })
-                    Delegation     = @([PSCustomObject]@{ SamAccountName = 'svc2' })
-                }
-                $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
-                    -Format HTML -Domain 'contoso.com'
-                $content = Get-Content $result -Raw
-                $content | Should -Match '<h2>Kerberoastable</h2>'
-                $content | Should -Match '<h2>Delegation</h2>'
+            $findings = @{
+                Kerberoastable = @([PSCustomObject]@{ SamAccountName = 'svc1' })
+                Delegation     = @([PSCustomObject]@{ SamAccountName = 'svc2' })
             }
+            $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
+                -Format HTML -Domain 'contoso.com'
+            $content = Get-Content $result -Raw
+            $content | Should -Match '<h2>Kerberoastable</h2>'
+            $content | Should -Match '<h2>Delegation</h2>'
         }
 
         It 'HTML file should contain an Executive Summary table' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{
-                    AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1' })
-                }
-                $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
-                    -Format HTML -Domain 'contoso.com'
-                $content = Get-Content $result -Raw
-                $content | Should -Match 'Executive Summary'
+            $findings = @{
+                AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1' })
             }
+            $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
+                -Format HTML -Domain 'contoso.com'
+            $content = Get-Content $result -Raw
+            $content | Should -Match 'Executive Summary'
         }
 
         It 'Empty section should display No items found message' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{ EmptySection = @() }
-                $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
-                    -Format HTML -Domain 'contoso.com'
-                $content = Get-Content $result -Raw
-                $content | Should -Match 'No items found'
-            }
+            $findings = @{ EmptySection = @() }
+            $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
+                -Format HTML -Domain 'contoso.com'
+            $content = Get-Content $result -Raw
+            $content | Should -Match 'No items found'
         }
 
         It 'HTML should be well-formed with opening and closing html tags' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{ Test = @([PSCustomObject]@{ Name = 'item1' }) }
-                $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
-                    -Format HTML -Domain 'contoso.com'
-                $content = Get-Content $result -Raw
-                $content | Should -Match '<html'
-                $content | Should -Match '</html>'
-            }
+            $findings = @{ Test = @([PSCustomObject]@{ Name = 'item1' }) }
+            $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:htmlTempDir `
+                -Format HTML -Domain 'contoso.com'
+            $content = Get-Content $result -Raw
+            $content | Should -Match '<html'
+            $content | Should -Match '</html>'
         }
     }
 
@@ -142,39 +130,33 @@ Describe 'New-DSAssessmentReport' -Tag 'Unit', 'Reporting' {
         }
 
         It 'Should write a CSV file and return its path' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{
-                    AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1'; Enabled = $true })
-                }
-                $result = New-DSAssessmentReport -InputObject $findings -OutputPath $script:csvTempDir `
-                    -Format CSV -Domain 'contoso.com'
-                $result      | Should -Not -BeNullOrEmpty
-                Test-Path $result | Should -BeTrue
+            $findings = @{
+                AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1'; Enabled = $true })
             }
+            $result = New-DSAssessmentReport -InputObject $findings -OutputPath $script:csvTempDir `
+                -Format CSV -Domain 'contoso.com'
+            $result      | Should -Not -BeNullOrEmpty
+            Test-Path $result | Should -BeTrue
         }
 
         It 'CSV file should have a .csv extension' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{
-                    AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1' })
-                }
-                $result = New-DSAssessmentReport -InputObject $findings -OutputPath $script:csvTempDir `
-                    -Format CSV -Domain 'contoso.com'
-                $result | Should -Match '\.csv$'
+            $findings = @{
+                AdminAccounts = @([PSCustomObject]@{ SamAccountName = 'Admin1' })
             }
+            $result = New-DSAssessmentReport -InputObject $findings -OutputPath $script:csvTempDir `
+                -Format CSV -Domain 'contoso.com'
+            $result | Should -Match '\.csv$'
         }
 
         It 'Multi-section CSV should include a Category column' {
-            InModuleScope DirectoryServicesToolkit {
-                $findings = @{
-                    Kerberoastable = @([PSCustomObject]@{ SamAccountName = 'svc1' })
-                    Delegation     = @([PSCustomObject]@{ SamAccountName = 'svc2' })
-                }
-                $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:csvTempDir `
-                    -Format CSV -Domain 'contoso.com'
-                $content = Get-Content $result -Raw
-                $content | Should -Match 'Category'
+            $findings = @{
+                Kerberoastable = @([PSCustomObject]@{ SamAccountName = 'svc1' })
+                Delegation     = @([PSCustomObject]@{ SamAccountName = 'svc2' })
             }
+            $result  = New-DSAssessmentReport -InputObject $findings -OutputPath $script:csvTempDir `
+                -Format CSV -Domain 'contoso.com'
+            $content = Get-Content $result -Raw
+            $content | Should -Match 'Category'
         }
     }
 
@@ -190,12 +172,10 @@ Describe 'New-DSAssessmentReport' -Tag 'Unit', 'Reporting' {
         }
 
         It 'Pipeline objects should be treated as Ungrouped section' {
-            InModuleScope DirectoryServicesToolkit {
-                $obj1   = [PSCustomObject]@{ SamAccountName = 'svc1'; HasSPN = $true }
-                $result = $obj1 | New-DSAssessmentReport -OutputPath $script:pipeTempDir -Format HTML
-                $content = Get-Content $result -Raw
-                $content | Should -Match 'Ungrouped'
-            }
+            $obj1   = [PSCustomObject]@{ SamAccountName = 'svc1'; HasSPN = $true }
+            $result = $obj1 | New-DSAssessmentReport -OutputPath $script:pipeTempDir -Format HTML
+            $content = Get-Content $result -Raw
+            $content | Should -Match 'Ungrouped'
         }
     }
 }

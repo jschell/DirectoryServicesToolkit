@@ -154,54 +154,40 @@ Describe 'Compare-DSBaseline' -Tag 'Unit', 'Reporting' {
         }
 
         It 'Should return a result object' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
-                $result | Should -Not -BeNullOrEmpty
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
+            $result | Should -Not -BeNullOrEmpty
         }
 
         It 'Should detect Admin3 as Added' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
-                $addedDns = @($result.Diffs.AdminAccounts.Added | ForEach-Object { $_.DistinguishedName })
-                $addedDns | Should -Contain 'CN=Admin3,CN=Users,DC=contoso,DC=com'
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
+            $addedDns = @($result.Diffs.AdminAccounts.Added | ForEach-Object { $_.DistinguishedName })
+            $addedDns | Should -Contain 'CN=Admin3,CN=Users,DC=contoso,DC=com'
         }
 
         It 'Should detect Admin2 as Removed' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
-                $removedDns = @($result.Diffs.AdminAccounts.Removed | ForEach-Object { $_.DistinguishedName })
-                $removedDns | Should -Contain 'CN=Admin2,CN=Users,DC=contoso,DC=com'
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
+            $removedDns = @($result.Diffs.AdminAccounts.Removed | ForEach-Object { $_.DistinguishedName })
+            $removedDns | Should -Contain 'CN=Admin2,CN=Users,DC=contoso,DC=com'
         }
 
         It 'Summary.TotalAdded should be 1' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
-                $result.Summary.TotalAdded | Should -Be 1
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
+            $result.Summary.TotalAdded | Should -Be 1
         }
 
         It 'Summary.TotalRemoved should be 1' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
-                $result.Summary.TotalRemoved | Should -Be 1
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
+            $result.Summary.TotalRemoved | Should -Be 1
         }
 
         It 'Summary.HasChanges should be $true' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
-                $result.Summary.HasChanges | Should -BeTrue
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
+            $result.Summary.HasChanges | Should -BeTrue
         }
 
         It 'Domain should reflect the baseline domain' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
-                $result.Domain | Should -Be 'contoso.com'
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:baselinePath -CurrentPath $script:currentPath
+            $result.Domain | Should -Be 'contoso.com'
         }
     }
 
@@ -234,18 +220,14 @@ Describe 'Compare-DSBaseline' -Tag 'Unit', 'Reporting' {
         }
 
         It 'Identical baselines should have HasChanges=$false' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:identPath1 -CurrentPath $script:identPath2
-                $result.Summary.HasChanges | Should -BeFalse
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:identPath1 -CurrentPath $script:identPath2
+            $result.Summary.HasChanges | Should -BeFalse
         }
 
         It 'Identical baselines should have TotalAdded=0 and TotalRemoved=0' {
-            InModuleScope DirectoryServicesToolkit {
-                $result = Compare-DSBaseline -BaselinePath $script:identPath1 -CurrentPath $script:identPath2
-                $result.Summary.TotalAdded   | Should -Be 0
-                $result.Summary.TotalRemoved | Should -Be 0
-            }
+            $result = Compare-DSBaseline -BaselinePath $script:identPath1 -CurrentPath $script:identPath2
+            $result.Summary.TotalAdded   | Should -Be 0
+            $result.Summary.TotalRemoved | Should -Be 0
         }
     }
 }

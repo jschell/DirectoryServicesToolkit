@@ -136,7 +136,7 @@ Changelog:
         Write-Verbose "Found $($linkObjects.Count) objects with gpLink"
 
         # gpLink value format: [LDAP://cn={GUID},cn=policies,cn=system,...;N][...]
-        $gpLinkPattern = '\[LDAP://[^;]+cn=(\{[^}]+\})[^;]*;(\d+)\]'
+        $gpLinkPattern = '\[LDAP://cn=(\{[^}]+\})[^;]*;(\d+)\]'
 
         foreach ($linkObj in $linkObjects)
         {
