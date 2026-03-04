@@ -19,18 +19,29 @@
         'Get-DSDomainObjects'
         'Get-DSGPO'
         'Get-DSKeyCredLink'
+        'Get-DSMachineAccountQuota'
         'Get-DSSelectiveAuth'
         'Get-DSServiceAccounts'
         'Get-DSUserByProperty'
+        'Find-DSUserCreatedComputers'
 
         # Security
         'ConvertFrom-TrustAttributeValue'
+        'Find-DSADCSEnrollmentAgents'
+        'Find-DSADCSTemplate'
+        'Find-DSADCSWebEnrollment'
         'Find-DSASREPRoastable'
         'Find-DSBitlockerKey'
+        'Find-DSDCSyncRights'
         'Find-DSDelegation'
+        'Find-DSGPPCredential'
         'Find-DSInterestingACE'
         'Find-DSKerberoastable'
+        'Get-DSADCSAuthority'
+        'Get-DSLAPSCoverage'
         'New-KerberosTicketRequest'
+        'Test-DSADCSACL'
+        'Test-DSLAPSPermissions'
         'Test-IfxTPM'
 
         # AccountHygiene
@@ -38,6 +49,7 @@
         'Find-DSPasswordNotRequired'
         'Find-DSStaleAccounts'
         'Get-DSPasswordPolicy'
+        'Get-DSProtectedUsersGaps'
         'Get-LastLoginInDomain'
 
         # Trusts
@@ -45,10 +57,17 @@
         'Test-DSTrustSIDFiltering'
 
         # DomainControllers
+        'Find-DSCoercionSurface'
+        'Find-DSNTLMRestrictions'
+        'Get-DSNTLMPolicy'
         'Get-DSReplicationStatus'
         'Get-DSResponseTime'
         'Get-DSSysvolHealth'
         'Get-OSLevelDomainController'
+        'Test-DSLDAPChannelBinding'
+        'Test-DSLDAPSecurity'
+        'Test-DSLDAPSigning'
+        'Test-DSPrintSpooler'
 
         # DNS
         'Find-DSADIDNSRecord'
