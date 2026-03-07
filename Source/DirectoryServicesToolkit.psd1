@@ -4,7 +4,7 @@
 # FunctionsToExport is kept current by `Invoke-Build Build`.
 
 @{
-    ModuleVersion = '0.2.0'
+    ModuleVersion = '0.3.0'
     GUID              = 'c4a3b2d1-e5f6-4789-a0bc-1d2e3f4a5b6c'
     Author            = 'J Schell'
     Description       = 'Active Directory security assessment and operational toolkit'
@@ -13,6 +13,8 @@
 
     FunctionsToExport = @(
         # Enumeration
+        'Find-DSRODCCachedCredentials'
+        'Find-DSUserCreatedComputers'
         'Get-DSAdminAccounts'
         'Get-DSAdminSDHolder'
         'Get-DSComputerByProperty'
@@ -20,15 +22,16 @@
         'Get-DSGPO'
         'Get-DSKeyCredLink'
         'Get-DSMachineAccountQuota'
+        'Get-DSRODCConfig'
         'Get-DSSelectiveAuth'
         'Get-DSServiceAccounts'
         'Get-DSUserByProperty'
-        'Find-DSUserCreatedComputers'
 
         # Security
         'ConvertFrom-TrustAttributeValue'
         'Find-DSADCSEnrollmentAgents'
         'Find-DSADCSTemplate'
+        'Find-DSADCSTemplateACL'
         'Find-DSADCSWebEnrollment'
         'Find-DSASREPRoastable'
         'Find-DSBitlockerKey'
@@ -41,6 +44,7 @@
         'Get-DSLAPSCoverage'
         'New-KerberosTicketRequest'
         'Test-DSADCSACL'
+        'Test-DSADCSCAFlags'
         'Test-DSLAPSPermissions'
         'Test-IfxTPM'
 
@@ -48,6 +52,8 @@
         'Find-DSPasswordNeverExpires'
         'Find-DSPasswordNotRequired'
         'Find-DSStaleAccounts'
+        'Find-DSStalePrivilegedAccounts'
+        'Find-DSWeakEncryptionAccounts'
         'Get-DSPasswordPolicy'
         'Get-DSProtectedUsersGaps'
         'Get-LastLoginInDomain'
@@ -68,6 +74,7 @@
         'Test-DSLDAPSecurity'
         'Test-DSLDAPSigning'
         'Test-DSPrintSpooler'
+        'Test-DSSMBSigning'
 
         # DNS
         'Find-DSADIDNSRecord'
