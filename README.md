@@ -300,6 +300,53 @@ DirectoryServicesToolkit/
 
 ---
 
+## Remote and Alternate-Credential Usage
+
+`-Server` and `-Credential` parameters are not currently implemented. This section documents why and what a complete implementation would require, so the gap is understood before deploying in assessments from non-domain-joined workstations.
+
+### Why they are absent
+
+The module's private helpers use two mechanisms that do not accept credentials at the call site:
+
+**LDAP queries (`Invoke-DSDirectorySearch`, `Get-DSObjectAcl`)**
+Both use the implicit `[adsisearcher][adsi]$LdapPath` cast, which binds using the current process identity. To support alternate credentials, every helper would need to construct an explicit `[System.DirectoryServices.DirectoryEntry]::new($path, $username, $password)` and wrap it in a `[System.DirectoryServices.DirectorySearcher]`.
+
+**Domain/DC resolution (`Resolve-DSDomainName`, `Get-DSDomainControllerNames`, `Get-DSPdcEmulatorName`, `Get-DSReplicationNeighborData`)**
+All four use `[System.DirectoryServices.ActiveDirectory.DirectoryContext]::new('Domain', $domain)` without credentials. The credential-aware overload is `DirectoryContext('Domain', $domain, $username, $password)`.
+
+**Registry reads (`Test-DSLDAPSigning`, `Test-DSLDAPChannelBinding`, `Get-DSNTLMPolicy`, `Test-DSSMBSigning`, `Test-DSADCSCAFlags`)**
+`[Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey()` uses the current session's identity and has no credential parameter in the .NET API. Alternate credentials require either Windows impersonation (P/Invoke) or switching the transport to WinRM (`Invoke-Command -Credential`), which adds a WinRM dependency alongside the existing RemoteRegistry dependency.
+
+**CIM functions (`Get-DSSysvolHealth`, `Test-DSPrintSpooler`, `Get-DSResponseTime`)**
+These already use `New-CimSession`, which does accept `-Credential`. This family is the closest to ready; it would need only the CimSession construction updated.
+
+**SYSVOL UNC paths (`Find-DSNTLMRestrictions`, `Find-DSGPPCredential`)**
+Access `\\domain\SYSVOL\...` directly. Alternate credentials require mapping a PSDrive or a `net use` mount before the UNC path is accessible, then unmounting afterward.
+
+### What a complete implementation requires
+
+1. Update all six private helpers to accept optional `[PSCredential]$Credential` and `[string]$Server` parameters and use the credential-aware constructor overloads.
+2. Add `[string]$Server` and `[PSCredential]$Credential` to the `Param` block of every public function.
+3. When `$Server` is specified, prefix all LDAP paths as `LDAP://$Server/<DN>` instead of `LDAP://<DN>`.
+4. Pass `$Credential` through to every private helper call.
+5. For registry-reading functions: when `$Credential` is present, use `Invoke-Command -ComputerName $dc -Credential $Credential` to execute the registry read inside a remote session; fall back to `OpenRemoteBaseKey` when no credential is supplied.
+6. For SYSVOL functions: mount a temporary PSDrive with the supplied credential before enumerating the UNC path, and remove it in the `End` block.
+
+### Current workaround
+
+Run PowerShell under the assessment account using `runas /netonly` or from a machine already joined to the target domain with the correct credentials in the current session:
+
+```powershell
+# Spawn a credential-aware shell (Kerberos ticket obtained via /netonly)
+runas /netonly /user:CONTOSO\assessor powershell.exe
+
+# Inside that shell, all module calls use the supplied identity
+Import-Module DirectoryServicesToolkit
+Find-DSKerberoastable -Domain 'contoso.com'
+```
+
+---
+
 ## Design Principles
 
 - **No RSAT dependency** — uses `System.DirectoryServices` (.NET) directly
