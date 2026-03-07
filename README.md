@@ -70,9 +70,11 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | Function | Description |
 |---|---|
 | `Find-DSADCSTemplate` | Enumerates certificate templates for ESC1, ESC2, and ESC3 vulnerability conditions |
+| `Find-DSADCSTemplateACL` | Reviews certificate template DACLs for non-privileged write access (ESC4 — GenericAll, WriteDacl, WriteProperty, WriteOwner) |
 | `Find-DSADCSEnrollmentAgents` | Identifies templates granting Certificate Request Agent (enrollment agent) rights (ESC3) |
 | `Get-DSADCSAuthority` | Enumerates Enterprise CA servers with certificate expiry and web enrollment endpoint details |
 | `Test-DSADCSACL` | Reviews CA object ACLs for non-admin principals with ManageCA or ManageCertificates rights (ESC7) |
+| `Test-DSADCSCAFlags` | Reads `EditFlags` from each CA server's registry; flags `EDITF_ATTRIBUTESUBJECTALTNAME2` (ESC6 — all client-auth templates become ESC1-equivalent) |
 | `Find-DSADCSWebEnrollment` | Detects HTTP (non-HTTPS) web enrollment endpoints vulnerable to NTLM relay (ESC8) |
 
 #### Credential Exposure & Replication
@@ -96,6 +98,8 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Get-DSDomainObjects` | General-purpose LDAP query returning typed result objects |
 | `Get-DSUserByProperty` | Queries user objects with flexible property-based filtering |
 | `Get-DSKeyCredLink` | Enumerates `msDS-KeyCredentialLink` attributes (Shadow Credentials attack surface) |
+| `Get-DSRODCConfig` | Enumerates all RODCs with Allowed and Denied Password Replication Policy groups; flags Tier 0 in Allowed PRP as Critical |
+| `Find-DSRODCCachedCredentials` | Reads `msDS-RevealedList` per RODC — identifies accounts whose credentials are currently cached; Critical for Tier 0 |
 | `Get-DSSelectiveAuth` | Checks selective authentication settings on forest trusts |
 | `Get-DSMachineAccountQuota` | Checks `ms-DS-MachineAccountQuota` on the domain root (RBCD/coercion prerequisite) |
 | `Find-DSUserCreatedComputers` | Identifies computer accounts created by non-admin users via `ms-DS-CreatorSID` |
@@ -108,6 +112,8 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Find-DSPasswordNotRequired` | Finds accounts with the `PASSWD_NOTREQD` UAC flag set |
 | `Find-DSPasswordNeverExpires` | Finds accounts with `DONT_EXPIRE_PASSWORD` set, with SPN cross-reference |
 | `Find-DSStaleAccounts` | Identifies accounts inactive beyond a configurable threshold |
+| `Find-DSStalePrivilegedAccounts` | Finds disabled accounts that still hold transitive membership in Tier 0 groups (Domain Admins, Enterprise Admins, Schema Admins) |
+| `Find-DSWeakEncryptionAccounts` | Detects `ENCRYPTED_TEXT_PASSWORD_ALLOWED` (reversible encryption, plaintext-equivalent) and `USE_DES_KEY_ONLY` (broken DES Kerberos) UAC flags |
 | `Get-DSProtectedUsersGaps` | Flags privileged accounts not in Protected Users; detects SPN/delegation incompatibilities |
 
 ### Trusts
@@ -138,6 +144,7 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Test-DSLDAPSecurity` | Combined signing + channel binding wrapper with per-DC composite risk score |
 | `Get-DSNTLMPolicy` | Reads `LmCompatibilityLevel`, `NoLMHash`, and `NtlmMinSec` flags from each DC's registry |
 | `Find-DSNTLMRestrictions` | Scans SYSVOL GptTmpl.inf files for NTLM-related security option settings |
+| `Test-DSSMBSigning` | Reads `RequireSecuritySignature` and `EnableSecuritySignature` from each DC's registry; DCs with LDAP signing enforced but SMB signing not required remain relay-exploitable |
 | `Test-DSPrintSpooler` | Queries Print Spooler service state via CIM — Critical on DCs (MS-RPRN coercion surface) |
 | `Find-DSCoercionSurface` | Composites Print Spooler state with unconstrained delegation for a combined coercion risk score |
 
@@ -162,8 +169,14 @@ Find-DSKerberoastable -Domain 'contoso.com'
 # Check all delegation configurations
 Find-DSDelegation -Domain 'contoso.com'
 
-# AD CS — enumerate vulnerable certificate templates
+# AD CS — enumerate vulnerable certificate templates (ESC1/ESC2/ESC3)
 Find-DSADCSTemplate -Domain 'contoso.com' | Where-Object { $_.IsVulnerable }
+
+# AD CS — find non-privileged write ACEs on templates (ESC4)
+Find-DSADCSTemplateACL -Domain 'contoso.com' | Where-Object { $_.IsVulnerable }
+
+# AD CS — check CA servers for EDITF_ATTRIBUTESUBJECTALTNAME2 flag (ESC6)
+Test-DSADCSCAFlags -Domain 'contoso.com' | Where-Object { $_.ESC6Vulnerable }
 
 # AD CS — find HTTP enrollment endpoints (ESC8 NTLM relay targets)
 Find-DSADCSWebEnrollment -Domain 'contoso.com' | Where-Object { $_.NTLMRelayRisk }
@@ -183,6 +196,9 @@ Get-DSMachineAccountQuota -Domain 'contoso.com'
 # LDAP signing + channel binding assessment
 Test-DSLDAPSecurity -Domain 'contoso.com' | Where-Object { -not $_.IsFullyCompliant }
 
+# SMB signing enforcement per DC
+Test-DSSMBSigning -Domain 'contoso.com' | Where-Object { -not $_.IsCompliant }
+
 # NTLM policy per DC
 Get-DSNTLMPolicy -Domain 'contoso.com' | Where-Object { $_.LmCompatibilityLevel -lt 5 }
 
@@ -192,8 +208,20 @@ Test-DSPrintSpooler -Domain 'contoso.com' | Where-Object { $_.SpoolerRunning }
 # Composite coercion risk (Spooler + unconstrained delegation)
 Find-DSCoercionSurface -Domain 'contoso.com' | Where-Object { $_.CompositeRisk -eq 'Critical' }
 
+# Disabled accounts still holding Tier 0 group membership
+Find-DSStalePrivilegedAccounts -Domain 'contoso.com'
+
+# Accounts with reversible encryption or DES-only Kerberos flags
+Find-DSWeakEncryptionAccounts -Domain 'contoso.com' | Where-Object { $_.RiskLevel -ne 'Medium' }
+
 # Privileged accounts not in Protected Users
 Get-DSProtectedUsersGaps -Domain 'contoso.com' | Where-Object { -not $_.InProtectedUsers }
+
+# RODC Password Replication Policy — flag Tier 0 in Allowed PRP
+Get-DSRODCConfig -Domain 'contoso.com' | Where-Object { $_.Tier0InAllowedPRP }
+
+# RODC cached credentials — surface any Tier 0 accounts cached on an RODC
+Find-DSRODCCachedCredentials -Domain 'contoso.com' -HighlightTier0
 
 # Evaluate trust SID filtering
 Test-DSTrustSIDFiltering -Domain 'contoso.com'
