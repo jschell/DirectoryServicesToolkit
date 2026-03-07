@@ -195,6 +195,8 @@ Changelog:
                              ($null -eq $sysvolReady -or $sysvolReady) -and
                              ($null -eq $dfsrStateCode -or $dfsrStateCode -eq 4)
 
+                # RiskLevel: an unhealthy SYSVOL means Group Policy is not being distributed
+                # correctly, causing inconsistent security policy application across the domain.
                 [PSCustomObject]@{
                     DCName           = $dc
                     SYSVOLShared     = $sysvolShared
@@ -205,6 +207,7 @@ Changelog:
                     StagingBacklogMB = $stagingBacklogMB
                     IsHealthy        = $isHealthy
                     Errors           = $errors.ToArray()
+                    RiskLevel        = if ($isHealthy) { 'Low' } else { 'High' }
                 }
             }
             catch
@@ -221,6 +224,7 @@ Changelog:
                     StagingBacklogMB = $null
                     IsHealthy        = $false
                     Errors           = @('DC unreachable')
+                    RiskLevel        = 'High'
                 }
             }
         }

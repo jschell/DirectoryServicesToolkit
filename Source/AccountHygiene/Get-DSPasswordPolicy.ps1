@@ -101,20 +101,35 @@ Changelog:
 
             $pwdProps    = [int]$domainRoot.Properties['pwdProperties'][0]
 
+            $pwdMinLen      = [int]$domainRoot.Properties['minPwdLength'][0]
+            $pwdHistoryLen  = [int]$domainRoot.Properties['pwdHistoryLength'][0]
+            $lockoutThresh  = [int]$domainRoot.Properties['lockoutThreshold'][0]
+            $complexEnabled = [bool]($pwdProps -band 1)
+            $reversibleEnc  = [bool]($pwdProps -band 16)
+
+            # RiskLevel: reversible encryption stores passwords recoverable as plaintext — Critical.
+            # No complexity + short minimum length (<8) = Critical. Any single weak attribute
+            # (no complexity, length <8, history <12, no lockout) = High. Otherwise Low.
+            $pwdPolicyRisk = if ($reversibleEnc) { 'Critical' }
+                             elseif (-not $complexEnabled -and $pwdMinLen -lt 8) { 'Critical' }
+                             elseif (-not $complexEnabled -or $pwdMinLen -lt 8 -or $pwdHistoryLen -lt 12 -or $lockoutThresh -eq 0) { 'High' }
+                             else { 'Low' }
+
             [PSCustomObject]@{
                 PolicyType               = 'Default'
                 Name                     = 'Default Domain Policy'
-                MinPasswordLength        = [int]$domainRoot.Properties['minPwdLength'][0]
-                PasswordHistoryCount     = [int]$domainRoot.Properties['pwdHistoryLength'][0]
+                MinPasswordLength        = $pwdMinLen
+                PasswordHistoryCount     = $pwdHistoryLen
                 MaxPasswordAge           = $maxPwdAge
                 MinPasswordAge           = $minPwdAge
-                LockoutThreshold         = [int]$domainRoot.Properties['lockoutThreshold'][0]
+                LockoutThreshold         = $lockoutThresh
                 LockoutDuration          = $lockoutDur
                 LockoutObservationWindow = $lockoutObs
-                ComplexityEnabled        = [bool]($pwdProps -band 1)
-                ReversibleEncryption     = [bool]($pwdProps -band 16)
+                ComplexityEnabled        = $complexEnabled
+                ReversibleEncryption     = $reversibleEnc
                 Precedence               = $null
                 AppliesTo                = $null
+                RiskLevel                = $pwdPolicyRisk
             }
         }
         catch
@@ -178,20 +193,33 @@ Changelog:
             $appliesToKey = ($pso.Keys | Where-Object { $_ -like 'msds-psoapplies*' } | Select-Object -First 1)
             $appliesToRaw = if ($appliesToKey) { $pso[$appliesToKey] } else { @() }
 
+            $psoMinLen       = [int]$pso['msds-minimumpasswordlength'][0]
+            $psoHistoryLen   = [int]$pso['msds-passwordhistorylength'][0]
+            $psoLockout      = [int]$pso['msds-lockoutthreshold'][0]
+            $psoComplex      = if ($complexRaw -and $complexRaw.Count -gt 0) { [bool]$complexRaw[0] } else { $false }
+            $psoRevEnc       = if ($revEncRaw -and $revEncRaw.Count -gt 0) { [bool]$revEncRaw[0] } else { $false }
+
+            # RiskLevel: same criteria as Default Domain Policy applied to PSO settings.
+            $psoPolicyRisk = if ($psoRevEnc) { 'Critical' }
+                             elseif (-not $psoComplex -and $psoMinLen -lt 8) { 'Critical' }
+                             elseif (-not $psoComplex -or $psoMinLen -lt 8 -or $psoHistoryLen -lt 12 -or $psoLockout -eq 0) { 'High' }
+                             else { 'Low' }
+
             [PSCustomObject]@{
                 PolicyType               = 'FineGrained'
                 Name                     = [string]$pso['name'][0]
-                MinPasswordLength        = [int]$pso['msds-minimumpasswordlength'][0]
-                PasswordHistoryCount     = [int]$pso['msds-passwordhistorylength'][0]
+                MinPasswordLength        = $psoMinLen
+                PasswordHistoryCount     = $psoHistoryLen
                 MaxPasswordAge           = $maxAge
                 MinPasswordAge           = $minAge
-                LockoutThreshold         = [int]$pso['msds-lockoutthreshold'][0]
+                LockoutThreshold         = $psoLockout
                 LockoutDuration          = $lockDur
                 LockoutObservationWindow = $lockObs
-                ComplexityEnabled        = if ($complexRaw -and $complexRaw.Count -gt 0) { [bool]$complexRaw[0] } else { $false }
-                ReversibleEncryption     = if ($revEncRaw -and $revEncRaw.Count -gt 0) { [bool]$revEncRaw[0] } else { $false }
+                ComplexityEnabled        = $psoComplex
+                ReversibleEncryption     = $psoRevEnc
                 Precedence               = [int]$pso['msds-passwordsettingsprecedence'][0]
                 AppliesTo                = if ($appliesToRaw -and $appliesToRaw.Count -gt 0) { @($appliesToRaw) } else { @() }
+                RiskLevel                = $psoPolicyRisk
             }
         }
     }

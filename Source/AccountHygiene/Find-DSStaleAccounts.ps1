@@ -240,6 +240,13 @@ Internal helper — constructs a stale account output object from a raw ADSI res
         $null
     }
 
+    # RiskLevel: accounts that have never logged on or have been inactive for over a year are
+    # likely orphaned — a higher risk because they may retain broad permissions and their
+    # credentials may never have been rotated. Moderately stale accounts are Medium.
+    $staleRiskLevel = if ($null -eq $daysSinceLastLogon) { 'High' }
+                     elseif ($daysSinceLastLogon -ge 365) { 'High' }
+                     else { 'Medium' }
+
     [PSCustomObject]@{
         SamAccountName     = [string]$Obj['samaccountname'][0]
         DistinguishedName  = [string]$Obj['distinguishedname'][0]
@@ -248,5 +255,6 @@ Internal helper — constructs a stale account output object from a raw ADSI res
         LastLogonTimestamp = $lastLogon
         DaysSinceLastLogon = $daysSinceLastLogon
         PasswordLastSet    = $passwordLastSet
+        RiskLevel          = $staleRiskLevel
     }
 }

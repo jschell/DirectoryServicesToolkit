@@ -48,12 +48,19 @@ function Get-OSLevelDomainController
             $coverageOfCurrentOSFormatted = "{0:N4}" -f $coverageOfCurrentOS 
             $coverageOfCurrentOSPercent = "{0:P2}" -f $coverageOfCurrentOS
             
+            # RiskLevel: low coverage of the target OS version means more DCs are running an
+            # older (potentially unpatched or unsupported) OS level, increasing exposure.
+            $osCoverageRisk = if ($coverageOfCurrentOS -ge 0.75) { 'Low' }
+                              elseif ($coverageOfCurrentOS -ge 0.50) { 'Medium' }
+                              else { 'High' }
+
             $domainOSCoverage = New-Object -TypeName PsObject -Property ([ordered]@{
                 domainName = $domain
                 totalDCCount = $totalDCinDomain
                 targetOSCount = $totalTargetDC
                 osCoverage = $coverageOfCurrentOSFormatted
                 osCoverageAsPercent = $coverageOfCurrentOSPercent
+                RiskLevel = $osCoverageRisk
             })
             
             $totalDomainView.totalDCCount += $totalDCinDomain

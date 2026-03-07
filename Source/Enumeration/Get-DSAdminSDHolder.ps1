@@ -185,6 +185,12 @@ Changelog:
                           elseif ($objClasses -contains 'user') { 'user' }
                           else { [string]$objClasses[-1] }
 
+            # RiskLevel: accounts with AdminCount=1 that are no longer members of any protected
+            # group retain a locked-down DACL (SDProp) and will not inherit OU ACL changes.
+            # They may be used as shadow admin accounts or ACL abuse pivots — High risk.
+            # Current protected group members are expected and Informational.
+            $adminSDRiskLevel = if ($isCurrent) { 'Informational' } else { 'High' }
+
             [PSCustomObject]@{
                 SamAccountName            = [string]$obj['samaccountname'][0]
                 DistinguishedName         = $dn
@@ -192,6 +198,7 @@ Changelog:
                 Enabled                   = -not [bool]($uac -band 2)
                 AdminCount                = 1
                 IsCurrentProtectedMember  = $isCurrent
+                RiskLevel                 = $adminSDRiskLevel
             }
         }
     }

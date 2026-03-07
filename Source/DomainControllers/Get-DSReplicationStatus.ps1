@@ -104,6 +104,13 @@ Changelog:
                         catch { "Win32 error $lastResult" }
                     }
 
+                    # RiskLevel: consecutive replication failures cause divergent directory state.
+                    # A high failure count (>=5) or a result code that has persisted indicates
+                    # a potentially extended outage — Critical. Any active failure is High.
+                    $replRiskLevel = if (-not $isFailing) { 'Low' }
+                                    elseif ($consFailures -ge 5) { 'Critical' }
+                                    else { 'High' }
+
                     [PSCustomObject]@{
                         DCName                = $dcName
                         Partner               = $neighbor.SourceServer
@@ -114,6 +121,7 @@ Changelog:
                         LastSyncResult        = $lastResult
                         LastSyncResultMessage = $msg
                         IsFailing             = $isFailing
+                        RiskLevel             = $replRiskLevel
                     }
                 }
             }

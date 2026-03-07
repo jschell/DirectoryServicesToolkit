@@ -117,6 +117,9 @@ Changelog:
             foreach ($obj in $userResults)
             {
                 $uac = [int]$obj['useraccountcontrol'][0]
+                # RiskLevel: Unconstrained delegation causes the KDC to embed a full TGT in
+                # service tickets — any service on these hosts can harvest credentials for any
+                # authenticating account. This is universally Critical.
                 [void]$results.Add(
                     [PSCustomObject]@{
                         SamAccountName     = [string]$obj['samaccountname'][0]
@@ -127,6 +130,7 @@ Changelog:
                         RBCDTarget         = $null
                         Enabled            = -not [bool]($uac -band 2)
                         ObjectType         = 'User'
+                        RiskLevel          = 'Critical'
                     }
                 )
             }
@@ -152,6 +156,7 @@ Changelog:
                             RBCDTarget         = $null
                             Enabled            = -not [bool]($uac -band 2)
                             ObjectType         = 'Computer'
+                            RiskLevel          = 'Critical'
                         }
                     )
                 }
@@ -181,6 +186,12 @@ Changelog:
                 $targets    = @($obj['msds-allowedtodelegateto'])
                 $objectType = if ($obj['objectclass'] -contains 'computer') { 'Computer' } else { 'User' }
 
+                # RiskLevel: Protocol transition (TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION) lets the
+                # service impersonate any user to any service in the delegate-to list without
+                # requiring a forwarded TGT — elevation to High. Standard constrained delegation
+                # requires a user TGS, narrowing the scope — Medium.
+                $constrainedRisk = if ([bool]($uac -band 16777216)) { 'High' } else { 'Medium' }
+
                 [void]$results.Add(
                     [PSCustomObject]@{
                         SamAccountName     = [string]$obj['samaccountname'][0]
@@ -191,6 +202,7 @@ Changelog:
                         RBCDTarget         = $null
                         Enabled            = -not [bool]($uac -band 2)
                         ObjectType         = $objectType
+                        RiskLevel          = $constrainedRisk
                     }
                 )
             }
@@ -224,6 +236,9 @@ Changelog:
                     }
                 }
 
+                # RiskLevel: RBCD requires an attacker to already control an account with an SPN
+                # (e.g. via MachineAccountQuota) and write access to the target computer's
+                # msDS-AllowedToActOnBehalfOfOtherIdentity. Elevated risk but requires prior access.
                 [void]$results.Add(
                     [PSCustomObject]@{
                         SamAccountName     = [string]$obj['samaccountname'][0]
@@ -234,6 +249,7 @@ Changelog:
                         RBCDTarget         = $rbcdSddl
                         Enabled            = -not [bool]($uac -band 2)
                         ObjectType         = 'Computer'
+                        RiskLevel          = 'Medium'
                     }
                 )
             }

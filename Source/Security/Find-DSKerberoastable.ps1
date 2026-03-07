@@ -136,6 +136,30 @@ Changelog:
             $isManagedAccount = $obj['objectclass'] -contains 'msDS-GroupManagedServiceAccount' -or
                                 $obj['objectclass'] -contains 'msDS-ManagedServiceAccount'
 
+            # RiskLevel: managed accounts have auto-rotated passwords and are not practically crackable.
+            # For non-managed accounts, risk scales with password age — older passwords are more
+            # likely to be crackable with modern rulesets.
+            $riskLevel = if ($isManagedAccount)
+            {
+                'Low'
+            }
+            elseif ($null -eq $passwordAgeDays)
+            {
+                'High'   # Password never set — unknown age, treat as elevated
+            }
+            elseif ($passwordAgeDays -ge 365)
+            {
+                'Critical'
+            }
+            elseif ($passwordAgeDays -ge 90)
+            {
+                'High'
+            }
+            else
+            {
+                'Medium'
+            }
+
             [void]$results.Add(
                 [PSCustomObject]@{
                     SamAccountName    = [string]$obj['samaccountname'][0]
@@ -145,6 +169,7 @@ Changelog:
                     PasswordAgeDays   = $passwordAgeDays
                     Enabled           = -not [bool]($uac -band 2)
                     IsManagedAccount  = [bool]$isManagedAccount
+                    RiskLevel         = $riskLevel
                 }
             )
         }

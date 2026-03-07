@@ -168,6 +168,18 @@ Changelog:
                 $transferTargets = @($wmiZone.SecondaryServers)
             }
 
+            # RiskLevel: combination of risk factors determines composite severity.
+            # ZoneTransferToAnyServer — full zone contents exposed to any requestor; Critical when
+            #   combined with UnsecuredDynamic, High alone.
+            # UnsecuredDynamic alone — unauthenticated record registration; High.
+            # ZoneTransferEnabled (restricted) — elevated but not worst-case; Medium.
+            # No risk factors — Low.
+            $dnsRiskLevel = if ($transferToAny -and $unsecureDynamic) { 'Critical' }
+                            elseif ($transferToAny) { 'High' }
+                            elseif ($unsecureDynamic) { 'High' }
+                            elseif ($transfersEnabled) { 'Medium' }
+                            else { 'Low' }
+
             [PSCustomObject]@{
                 ZoneName               = $zoneName
                 ZoneType               = $zoneTypeName
@@ -178,6 +190,7 @@ Changelog:
                 ZoneTransferTargets    = $transferTargets
                 RiskFactors            = @($riskFactors)
                 IsReverseLookupZone    = [bool]$wmiZone.IsReverseLookupZone
+                RiskLevel              = $dnsRiskLevel
             }
         }
     }

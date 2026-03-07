@@ -115,6 +115,28 @@ Changelog:
 
             $isVulnerable = ($escFlags.Count -gt 0) -and $noManagerApproval
 
+            # RiskLevel: driven by which ESC conditions are present and whether manager approval
+            # mitigates them. ESC1 (enrollee-supplied SAN) allows immediate arbitrary principal
+            # impersonation — Critical when exploitable. ESC2 (Any Purpose EKU) is nearly as
+            # severe. ESC3-Condition alone (no RA signature) is a prerequisite, not a standalone
+            # exploit, so it rates Medium. Manager approval removes exploitability entirely.
+            $templateRiskLevel = if (-not $isVulnerable)
+            {
+                'Informational'
+            }
+            elseif ($isESC1)
+            {
+                'Critical'
+            }
+            elseif ($isESC2)
+            {
+                'High'
+            }
+            else
+            {
+                'Medium'
+            }
+
             [void]$results.Add(
                 [PSCustomObject]@{
                     Name                    = [string]$obj['name'][0]
@@ -129,6 +151,7 @@ Changelog:
                     NameFlag                = $nameFlag
                     EnrollmentFlag          = $enrollFlag
                     RASignatureCount        = $raSignature
+                    RiskLevel               = $templateRiskLevel
                 }
             )
         }

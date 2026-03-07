@@ -118,6 +118,10 @@ Changelog:
                         SettingName   = $settingName
                         SettingValue  = $foundSettings[$settingName]
                         HasNTLMPolicy = $true
+                        # RiskLevel: each row confirms an NTLM restriction policy is enforced
+                        # via GPO. Presence is a positive control. The *absence* of any results
+                        # from this function indicates missing NTLM hardening (see Verbose output).
+                        RiskLevel     = 'Informational'
                     }
                 )
             }
