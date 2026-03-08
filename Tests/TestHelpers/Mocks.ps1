@@ -241,7 +241,7 @@ $script:MockLDAPSigning = @(
         DCName       = 'DC01.contoso.com'
         SigningValue = 2
         Description  = 'Require signing — LDAP signing enforced'
-        RiskLevel    = 'Compliant'
+        RiskLevel    = 'Low'
         IsCompliant  = $true
         ErrorMessage = $null
     }
@@ -269,7 +269,7 @@ $script:MockNTLMPolicy = @(
         Encryption128BitClient = $true
         NTLMv2ServerRequired   = $true
         Encryption128BitServer = $true
-        RiskLevel              = 'Compliant'
+        RiskLevel              = 'Low'
         IsCompliant            = $true
         ErrorMessage           = $null
     }

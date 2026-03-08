@@ -143,7 +143,7 @@ https://posts.specterops.io/certified-pre-owned-d95910965cd2
             }
             else
             {
-                'Compliant'
+                'Low'
             }
 
             $finding = if ($esc6Vulnerable)

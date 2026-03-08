@@ -12,7 +12,7 @@ Describe 'Test-DSLDAPSigning' -Tag 'Unit', 'DomainControllers' {
                 DCName       = 'DC01.contoso.com'
                 SigningValue = 2
                 Description  = 'Require signing — LDAP signing enforced'
-                RiskLevel    = 'Compliant'
+                RiskLevel    = 'Low'
                 IsCompliant  = $true
                 ErrorMessage = $null
             }
@@ -30,27 +30,27 @@ Describe 'Test-DSLDAPSigning' -Tag 'Unit', 'DomainControllers' {
 
         It 'Value 0 should be classified as Critical' {
             $value = 0
-            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Compliant' } default { 'Unknown' } }
+            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Low' } default { 'Unknown' } }
             $risk  | Should -Be 'Critical'
         }
 
         It 'Value 1 should be classified as Medium' {
             $value = 1
-            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Compliant' } default { 'Unknown' } }
+            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Low' } default { 'Unknown' } }
             $risk  | Should -Be 'Medium'
         }
 
-        It 'Value 2 should be classified as Compliant' {
+        It 'Value 2 should be classified as Low' {
             $value = 2
-            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Compliant' } default { 'Unknown' } }
-            $risk  | Should -Be 'Compliant'
+            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Low' } default { 'Unknown' } }
+            $risk  | Should -Be 'Low'
         }
 
         It 'IsCompliant should be true only for value 2' {
-            $riskCompliant = 'Compliant'
+            $riskCompliant = 'Low'
             $riskMedium    = 'Medium'
-            ($riskCompliant -eq 'Compliant') | Should -BeTrue
-            ($riskMedium -eq 'Compliant')    | Should -BeFalse
+            ($riskCompliant -eq 'Low') | Should -BeTrue
+            ($riskMedium -eq 'Low')    | Should -BeFalse
         }
     }
 
@@ -65,7 +65,7 @@ Describe 'Test-DSLDAPSigning' -Tag 'Unit', 'DomainControllers' {
         It 'Default absent value should be classified as Medium risk' {
             $signingValue = $null
             if ($null -eq $signingValue) { $signingValue = 1 }
-            $risk = switch ([int]$signingValue) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Compliant' } default { 'Unknown' } }
+            $risk = switch ([int]$signingValue) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Low' } default { 'Unknown' } }
             $risk | Should -Be 'Medium'
         }
     }

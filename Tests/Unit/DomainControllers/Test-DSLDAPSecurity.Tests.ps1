@@ -11,13 +11,13 @@ Describe 'Test-DSLDAPSecurity' -Tag 'Unit', 'DomainControllers' {
             $result = [PSCustomObject]@{
                 DCName                 = 'DC01.contoso.com'
                 SigningValue           = 2
-                SigningRiskLevel       = 'Compliant'
+                SigningRiskLevel       = 'Low'
                 ChannelBindingValue    = 2
-                ChannelBindingRisk     = 'Compliant'
+                ChannelBindingRisk     = 'Low'
                 IsSigningCompliant     = $true
                 IsChannelBindCompliant = $true
                 IsFullyCompliant       = $true
-                CompositeRiskLevel     = 'Compliant'
+                CompositeRiskLevel     = 'Low'
             }
 
             $result.PSObject.Properties.Name | Should -Contain 'DCName'
@@ -63,26 +63,26 @@ Describe 'Test-DSLDAPSecurity' -Tag 'Unit', 'DomainControllers' {
             $cbRisk  = 'Medium'
             $composite = if ($sigRisk -eq 'Critical' -or $cbRisk -eq 'Critical') { 'Critical' }
                          elseif ($sigRisk -eq 'Medium' -or $cbRisk -eq 'Medium') { 'Medium' }
-                         else { 'Compliant' }
+                         else { 'Low' }
             $composite | Should -Be 'Critical'
         }
 
         It 'CompositeRiskLevel should be Medium when one is Medium and neither is Critical' {
-            $sigRisk = 'Compliant'
+            $sigRisk = 'Low'
             $cbRisk  = 'Medium'
             $composite = if ($sigRisk -eq 'Critical' -or $cbRisk -eq 'Critical') { 'Critical' }
                          elseif ($sigRisk -eq 'Medium' -or $cbRisk -eq 'Medium') { 'Medium' }
-                         else { 'Compliant' }
+                         else { 'Low' }
             $composite | Should -Be 'Medium'
         }
 
-        It 'CompositeRiskLevel should be Compliant when both components are Compliant' {
-            $sigRisk = 'Compliant'
-            $cbRisk  = 'Compliant'
+        It 'CompositeRiskLevel should be Low when both components are Low' {
+            $sigRisk = 'Low'
+            $cbRisk  = 'Low'
             $composite = if ($sigRisk -eq 'Critical' -or $cbRisk -eq 'Critical') { 'Critical' }
                          elseif ($sigRisk -eq 'Medium' -or $cbRisk -eq 'Medium') { 'Medium' }
-                         else { 'Compliant' }
-            $composite | Should -Be 'Compliant'
+                         else { 'Low' }
+            $composite | Should -Be 'Low'
         }
     }
 }

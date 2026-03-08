@@ -130,16 +130,22 @@ https://gist.github.com/jschell/6e469dc5237408172af6faf73b227ac8
             $queryResult = New-Object -TypeName PsObject -Property ([ordered]@{
                 ComputerName = $null
                 IpAddress = $entry
+                RiskLevel = $null
             })
 
             if( $currentDomainControllerAddr.IpAddress -match $entry)
             {
                 $queryResult.ComputerName = ($currentDomainControllerAddr |
                     Where-Object {$_.IpAddress -match "$($entry)\b" }).computername
+                # RiskLevel: record maps to a known active DC — no immediate risk.
+                $queryResult.RiskLevel = 'Informational'
             }
             else
             {
                 $queryResult.ComputerName = $staleRecordString
+                # RiskLevel: stale DC records can be hijacked by registering the orphaned IP,
+                # enabling man-in-the-middle or authentication relay against domain clients.
+                $queryResult.RiskLevel = 'Medium'
             }
 
             $resolvedAddress += @( $queryResult )

@@ -248,21 +248,39 @@ Internal helper — converts a raw trust hashtable to the output PSCustomObject.
     $whenChangedRaw  = $Obj['whenchanged']
     $flatNameRaw     = $Obj['flatname']
 
+    $isSIDFiltered      = [bool]($trustAttributes -band 4)
+    $isTGTBlocked       = [bool]($trustAttributes -band 512)
+    $isTransitive       = -not [bool]($trustAttributes -band 1)
+    $isForestTransitive = [bool]($trustAttributes -band 8)
+
+    # RiskLevel: trusts without SID filtering enabled allow SID history attacks — an attacker
+    # in the trusted domain can forge SID history entries for privileged groups in this domain.
+    # Cross-forest or bidirectional transitive trusts without SID filtering are Critical.
+    # Unidirectional trusts without SID filtering are High.
+    # Transitive trusts with TGT delegation not blocked allow unconstrained delegation across
+    # the trust boundary — High when not blocked.
+    # All other trusts are Informational (expected in multi-domain forests).
+    $trustRiskLevel = if (-not $isSIDFiltered -and ($isForestTransitive -or $directionName -eq 'Bidirectional')) { 'Critical' }
+                     elseif (-not $isSIDFiltered) { 'High' }
+                     elseif ($isTransitive -and -not $isTGTBlocked) { 'High' }
+                     else { 'Informational' }
+
     [PSCustomObject]@{
         Name                  = [string]$Obj['name'][0]
         FlatName              = if ($flatNameRaw -and $flatNameRaw.Count -gt 0) { [string]$flatNameRaw[0] } else { $null }
         TrustedDomainSID      = $trustedSid
         Direction             = $directionName
         TrustType             = $typeName
-        IsTransitive          = -not [bool]($trustAttributes -band 1)
-        ForestTransitive      = [bool]($trustAttributes -band 8)
-        SIDFilteringEnabled   = [bool]($trustAttributes -band 4)
-        TGTDelegationBlocked  = [bool]($trustAttributes -band 512)
+        IsTransitive          = $isTransitive
+        ForestTransitive      = $isForestTransitive
+        SIDFilteringEnabled   = $isSIDFiltered
+        TGTDelegationBlocked  = $isTGTBlocked
         WithinForest          = [bool]($trustAttributes -band 32)
         TreatAsExternal       = [bool]($trustAttributes -band 64)
         TrustAttributes       = $trustAttributes
         WhenCreated           = if ($whenCreatedRaw -and $whenCreatedRaw.Count -gt 0) { $whenCreatedRaw[0] } else { $null }
         WhenModified          = if ($whenChangedRaw -and $whenChangedRaw.Count -gt 0) { $whenChangedRaw[0] } else { $null }
         SourceDomain          = $SourceDomain
+        RiskLevel             = $trustRiskLevel
     }
 }

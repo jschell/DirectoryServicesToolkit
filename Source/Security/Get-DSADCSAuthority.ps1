@@ -105,6 +105,14 @@ Changelog:
             $hasWebEnrollment = $enrollSvrs.Count -gt 0
             $httpEndpoints    = @($enrollSvrs | Where-Object { $_ -match '^http://' })
 
+            # RiskLevel: HTTP (non-HTTPS) enrollment endpoints expose NTLM authentication to relay
+            # attacks (ESC8). A certificate nearing expiry disrupts authentication for all relying
+            # parties but is not directly exploitable — rated High for operational impact.
+            $isExpiringSoon = $null -ne $expiry -and ($expiry - (Get-Date)).TotalDays -le 30
+            $caRiskLevel = if ($httpEndpoints.Count -gt 0) { 'Critical' }
+                           elseif ($isExpiringSoon) { 'High' }
+                           else { 'Informational' }
+
             [void]$results.Add(
                 [PSCustomObject]@{
                     Name              = $caName
@@ -116,6 +124,7 @@ Changelog:
                     HasWebEnrollment  = $hasWebEnrollment
                     HTTPEndpoints     = $httpEndpoints
                     HTTPEndpointCount = $httpEndpoints.Count
+                    RiskLevel         = $caRiskLevel
                 }
             )
         }

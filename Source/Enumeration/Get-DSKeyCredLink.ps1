@@ -65,11 +65,15 @@ function Get-DSKeyCredLink
                 
                 $uacAsInt =  $($object.Properties.useraccountcontrol)
                 
+                # RiskLevel: msDS-KeyCredentialLink on non-DC machines may indicate a Shadow
+                # Credentials attack (ADCS ESC-adjacent) — an attacker who wrote this attribute
+                # can authenticate as the computer account. High.
                 $objectTemp =  New-Object -TypeName PsObject -Property ([ordered]@{
                     DistinguishedName   = $($object.properties.distinguishedname)
                     SamAccountName      = $($object.properties.samaccountname)
                     UserAccountControl  = [int]$uacAsInt
                     MachineType         = 'Workstation'
+                    RiskLevel           = 'High'
                 })
                 [void]$WorkstationSet.Add( $objectTemp )
             }            
@@ -107,6 +111,7 @@ function Get-DSKeyCredLink
                     SamAccountName      = $($object.properties.samaccountname)
                     UserAccountControl  = [int]$uacAsInt
                     MachineType         = 'MemberServer'
+                    RiskLevel           = 'High'
                 })
                 [void]$MemberServerSet.Add( $objectTemp )
             }

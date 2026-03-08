@@ -110,17 +110,22 @@ Changelog:
                              elseif ($isDC) { 'High' }
                              else { 'Medium' }
 
+            # RiskLevel mirrors CompositeRisk. CompositeRisk is preserved as the primary field
+            # because it explicitly communicates the composite nature of the finding (Spooler +
+            # unconstrained delegation). RiskLevel provides a standard property for cross-function
+            # pipeline filtering (e.g. Where-Object { $_.RiskLevel -eq 'Critical' }).
             [void]$results.Add(
                 [PSCustomObject]@{
-                    Hostname             = $hostname
-                    DistinguishedName    = [string]$entry['distinguishedname'][0]
-                    IsDomainController   = $isDC
+                    Hostname              = $hostname
+                    DistinguishedName     = [string]$entry['distinguishedname'][0]
+                    IsDomainController    = $isDC
                     UnconstrainedDelegate = $true
-                    SpoolerState         = $spoolerState
-                    SpoolerRunning       = $spoolerRunning
-                    CompositeRisk        = $compositeRisk
-                    Finding              = "Host '$hostname' has unconstrained delegation$(if ($spoolerRunning) { ' AND running Print Spooler' }) — coercion attack risk"
-                    ErrorMessage         = $errorMessage
+                    SpoolerState          = $spoolerState
+                    SpoolerRunning        = $spoolerRunning
+                    CompositeRisk         = $compositeRisk
+                    RiskLevel             = $compositeRisk
+                    Finding               = "Host '$hostname' has unconstrained delegation$(if ($spoolerRunning) { ' AND running Print Spooler' }) — coercion attack risk"
+                    ErrorMessage          = $errorMessage
                 }
             )
         }

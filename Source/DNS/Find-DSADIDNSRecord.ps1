@@ -233,6 +233,11 @@ Changelog:
 
                     if ($aceSid -and $excludedSids.Contains($aceSid)) { continue }
 
+                    # RiskLevel: write access to a DNS zone container lets any matching principal
+                    # inject arbitrary DNS records, enabling WPAD/relay/poisoning attacks. High
+                    # by default; escalates to Critical when the right is GenericAll.
+                    $adidnsRisk = if ($flaggedRightName -eq 'GenericAll') { 'Critical' } else { 'High' }
+
                     [PSCustomObject]@{
                         ZoneName          = $zoneName
                         DistinguishedName = $zoneDn
@@ -241,6 +246,7 @@ Changelog:
                         Right             = $flaggedRightName
                         RecordName        = $null
                         Partition         = $partition.Label
+                        RiskLevel         = $adidnsRisk
                     }
                 }
 
@@ -263,6 +269,8 @@ Changelog:
 
                 if ($null -ne $wildcardResults -and $wildcardResults.Count -gt 0)
                 {
+                    # RiskLevel: a wildcard dnsNode record intercepts all unresolved DNS queries in
+                    # the zone — commonly added by attackers for credential relay. Critical.
                     [PSCustomObject]@{
                         ZoneName          = $zoneName
                         DistinguishedName = $zoneDn
@@ -271,6 +279,7 @@ Changelog:
                         Right             = $null
                         RecordName        = '*'
                         Partition         = $partition.Label
+                        RiskLevel         = 'Critical'
                     }
                 }
             }

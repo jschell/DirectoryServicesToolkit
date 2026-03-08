@@ -234,6 +234,21 @@ Changelog:
                     if (-not $script:TargetPrincipalSet.Contains($principalShort)) { continue }
                 }
 
+                # RiskLevel: mapped from the specific right granted.
+                # GenericAll / WriteDACL — full control or DACL rewrite; trivial path to domain compromise.
+                # WriteOwner / GenericWrite / AllExtendedRights / ForceChangePassword — high-value
+                # misconfigurations allowing targeted privilege escalation or credential reset.
+                $aceRiskLevel = switch ($flaggedRightName)
+                {
+                    'GenericAll'          { 'Critical' }
+                    'WriteDACL'           { 'Critical' }
+                    'WriteOwner'          { 'High' }
+                    'GenericWrite'        { 'High' }
+                    'AllExtendedRights'   { 'High' }
+                    'ForceChangePassword' { 'High' }
+                    default               { 'Medium' }
+                }
+
                 [void]$results.Add(
                     [PSCustomObject]@{
                         TargetObject      = $dn
@@ -242,6 +257,7 @@ Changelog:
                         Right             = $flaggedRightName
                         AccessType        = $ace.AccessControlType
                         IsInherited       = $ace.IsInherited
+                        RiskLevel         = $aceRiskLevel
                     }
                 )
             }

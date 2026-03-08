@@ -113,13 +113,20 @@ Changelog:
                 $null
             }
 
+            # RiskLevel: PASSWD_NOTREQD allows authentication with an empty password when the
+            # effective domain policy does not enforce a minimum length for that account.
+            # Enabled accounts with this flag represent an immediate blank-password risk — High.
+            $isAccountEnabled = -not [bool]($uac -band 2)
+            $pnrRiskLevel     = if ($isAccountEnabled) { 'High' } else { 'Low' }
+
             [void]$results.Add(
                 [PSCustomObject]@{
                     SamAccountName    = [string]$obj['samaccountname'][0]
                     DistinguishedName = [string]$obj['distinguishedname'][0]
-                    Enabled           = -not [bool]($uac -band 2)
+                    Enabled           = $isAccountEnabled
                     PasswordLastSet   = $passwordLastSet
                     PasswordNeverSet  = ($null -eq $passwordLastSet)
+                    RiskLevel         = $pnrRiskLevel
                 }
             )
         }

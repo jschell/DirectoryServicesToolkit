@@ -111,13 +111,20 @@ Changelog:
                 $null
             }
 
+            # RiskLevel: AS-REP roasting requires no credentials — enabled accounts are immediately
+            # attackable by any unauthenticated network observer. Disabled accounts retain the
+            # flag but cannot be actively exploited, so risk is reduced to Low.
+            $isEnabled = -not [bool]($uac -band 2)
+            $riskLevel = if ($isEnabled) { 'High' } else { 'Low' }
+
             [void]$results.Add(
                 [PSCustomObject]@{
                     SamAccountName    = [string]$obj['samaccountname'][0]
                     DistinguishedName = [string]$obj['distinguishedname'][0]
-                    Enabled           = -not [bool]($uac -band 2)
+                    Enabled           = $isEnabled
                     PasswordLastSet   = $passwordLastSet
                     MemberOf          = @($obj['memberof'])
+                    RiskLevel         = $riskLevel
                 }
             )
         }

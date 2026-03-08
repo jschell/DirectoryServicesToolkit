@@ -19,7 +19,7 @@ Describe 'Get-DSNTLMPolicy' -Tag 'Unit', 'DomainControllers' {
                 Encryption128BitClient = $true
                 NTLMv2ServerRequired   = $true
                 Encryption128BitServer = $true
-                RiskLevel              = 'Compliant'
+                RiskLevel              = 'Low'
                 IsCompliant            = $true
                 ErrorMessage           = $null
             }
@@ -44,32 +44,32 @@ Describe 'Get-DSNTLMPolicy' -Tag 'Unit', 'DomainControllers' {
 
         It 'Level 0 should be Critical' {
             $level = 0
-            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Compliant' } else { 'Unknown' }
+            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Low' } else { 'Unknown' }
             $risk  | Should -Be 'Critical'
         }
 
         It 'Level 2 should be Critical' {
             $level = 2
-            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Compliant' } else { 'Unknown' }
+            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Low' } else { 'Unknown' }
             $risk  | Should -Be 'Critical'
         }
 
         It 'Level 3 should be Medium' {
             $level = 3
-            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Compliant' } else { 'Unknown' }
+            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Low' } else { 'Unknown' }
             $risk  | Should -Be 'Medium'
         }
 
         It 'Level 4 should be Medium' {
             $level = 4
-            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Compliant' } else { 'Unknown' }
+            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Low' } else { 'Unknown' }
             $risk  | Should -Be 'Medium'
         }
 
-        It 'Level 5 should be Compliant' {
+        It 'Level 5 should be Low' {
             $level = 5
-            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Compliant' } else { 'Unknown' }
-            $risk  | Should -Be 'Compliant'
+            $risk  = if ($level -le 2) { 'Critical' } elseif ($level -le 4) { 'Medium' } elseif ($level -eq 5) { 'Low' } else { 'Unknown' }
+            $risk  | Should -Be 'Low'
         }
     }
 

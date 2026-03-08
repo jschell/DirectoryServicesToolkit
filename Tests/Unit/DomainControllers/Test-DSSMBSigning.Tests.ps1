@@ -13,7 +13,7 @@ Describe 'Test-DSSMBSigning' -Tag 'Unit', 'DomainControllers' {
                 RequireSecuritySignature = 1
                 EnableSecuritySignature  = 1
                 Description              = 'SMB signing required — all SMB connections must be signed'
-                RiskLevel                = 'Compliant'
+                RiskLevel                = 'Low'
                 IsCompliant              = $true
                 ErrorMessage             = $null
             }
@@ -30,34 +30,34 @@ Describe 'Test-DSSMBSigning' -Tag 'Unit', 'DomainControllers' {
 
     Context 'Risk level classification' {
 
-        It 'RequireSecuritySignature = 1 should be Compliant' {
+        It 'RequireSecuritySignature = 1 should be Low' {
             $requireInt = 1
             $enableInt  = 1
-            $riskLevel  = if ($requireInt -eq 1) { 'Compliant' } elseif ($enableInt -eq 1) { 'Medium' } else { 'Critical' }
-            $riskLevel | Should -Be 'Compliant'
+            $riskLevel  = if ($requireInt -eq 1) { 'Low' } elseif ($enableInt -eq 1) { 'Medium' } else { 'Critical' }
+            $riskLevel | Should -Be 'Low'
         }
 
         It 'RequireSecuritySignature = 0, EnableSecuritySignature = 1 should be Medium' {
             $requireInt = 0
             $enableInt  = 1
-            $riskLevel  = if ($requireInt -eq 1) { 'Compliant' } elseif ($enableInt -eq 1) { 'Medium' } else { 'Critical' }
+            $riskLevel  = if ($requireInt -eq 1) { 'Low' } elseif ($enableInt -eq 1) { 'Medium' } else { 'Critical' }
             $riskLevel | Should -Be 'Medium'
         }
 
         It 'RequireSecuritySignature = 0, EnableSecuritySignature = 0 should be Critical' {
             $requireInt = 0
             $enableInt  = 0
-            $riskLevel  = if ($requireInt -eq 1) { 'Compliant' } elseif ($enableInt -eq 1) { 'Medium' } else { 'Critical' }
+            $riskLevel  = if ($requireInt -eq 1) { 'Low' } elseif ($enableInt -eq 1) { 'Medium' } else { 'Critical' }
             $riskLevel | Should -Be 'Critical'
         }
 
         It 'IsCompliant should be true only when RequireSecuritySignature = 1' {
-            $riskLevel  = 'Compliant'
-            $isCompliant = ($riskLevel -eq 'Compliant')
+            $riskLevel  = 'Low'
+            $isCompliant = ($riskLevel -eq 'Low')
             $isCompliant | Should -BeTrue
 
             $riskLevel   = 'Medium'
-            $isCompliant = ($riskLevel -eq 'Compliant')
+            $isCompliant = ($riskLevel -eq 'Low')
             $isCompliant | Should -BeFalse
         }
     }
@@ -79,7 +79,7 @@ Describe 'Test-DSSMBSigning' -Tag 'Unit', 'DomainControllers' {
         It 'Null both values should result in Critical risk' {
             $requireInt = 0
             $enableInt  = 0
-            $riskLevel  = if ($requireInt -eq 1) { 'Compliant' } elseif ($enableInt -eq 1) { 'Medium' } else { 'Critical' }
+            $riskLevel  = if ($requireInt -eq 1) { 'Low' } elseif ($enableInt -eq 1) { 'Medium' } else { 'Critical' }
             $riskLevel | Should -Be 'Critical'
         }
     }

@@ -12,7 +12,7 @@ Describe 'Test-DSLDAPChannelBinding' -Tag 'Unit', 'DomainControllers' {
                 DCName              = 'DC01.contoso.com'
                 ChannelBindingValue = 2
                 Description         = 'Always required — channel binding enforced'
-                RiskLevel           = 'Compliant'
+                RiskLevel           = 'Low'
                 IsCompliant         = $true
                 ErrorMessage        = $null
             }
@@ -30,27 +30,27 @@ Describe 'Test-DSLDAPChannelBinding' -Tag 'Unit', 'DomainControllers' {
 
         It 'Value 0 should be classified as Critical' {
             $value = 0
-            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Compliant' } default { 'Unknown' } }
+            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Low' } default { 'Unknown' } }
             $risk  | Should -Be 'Critical'
         }
 
         It 'Value 1 should be classified as Medium' {
             $value = 1
-            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Compliant' } default { 'Unknown' } }
+            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Low' } default { 'Unknown' } }
             $risk  | Should -Be 'Medium'
         }
 
-        It 'Value 2 should be classified as Compliant' {
+        It 'Value 2 should be classified as Low' {
             $value = 2
-            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Compliant' } default { 'Unknown' } }
-            $risk  | Should -Be 'Compliant'
+            $risk  = switch ($value) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Low' } default { 'Unknown' } }
+            $risk  | Should -Be 'Low'
         }
 
         It 'IsCompliant should be true only for value 2' {
-            $riskCompliant = 'Compliant'
+            $riskCompliant = 'Low'
             $riskCritical  = 'Critical'
-            ($riskCompliant -eq 'Compliant') | Should -BeTrue
-            ($riskCritical -eq 'Compliant')  | Should -BeFalse
+            ($riskCompliant -eq 'Low') | Should -BeTrue
+            ($riskCritical -eq 'Low')  | Should -BeFalse
         }
     }
 
@@ -65,7 +65,7 @@ Describe 'Test-DSLDAPChannelBinding' -Tag 'Unit', 'DomainControllers' {
         It 'Default absent value should be classified as Critical' {
             $cbValue = $null
             if ($null -eq $cbValue) { $cbValue = 0 }
-            $risk = switch ([int]$cbValue) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Compliant' } default { 'Unknown' } }
+            $risk = switch ([int]$cbValue) { 0 { 'Critical' } 1 { 'Medium' } 2 { 'Low' } default { 'Unknown' } }
             $risk | Should -Be 'Critical'
         }
     }

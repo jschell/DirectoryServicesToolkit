@@ -122,6 +122,11 @@ Changelog:
             $hasSPN = ($null -ne $spnRaw -and $spnRaw.Count -gt 0 -and $null -ne $spnRaw[0])
             $spns   = if ($hasSPN) { @($spnRaw) } else { @() }
 
+            # RiskLevel: accounts with SPNs are Kerberoastable — a non-expiring password means
+            # the ticket hash can be cracked offline without a deadline. High when HasSPN is set,
+            # Medium for standard user accounts with non-expiring passwords.
+            $npeRiskLevel = if ($hasSPN) { 'High' } else { 'Medium' }
+
             [void]$results.Add(
                 [PSCustomObject]@{
                     SamAccountName    = [string]$obj['samaccountname'][0]
@@ -131,6 +136,7 @@ Changelog:
                     PasswordAgeDays   = $passwordAgeDays
                     HasSPN            = $hasSPN
                     SPNs              = $spns
+                    RiskLevel         = $npeRiskLevel
                 }
             )
         }
