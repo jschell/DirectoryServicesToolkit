@@ -64,17 +64,17 @@ Describe 'Test-DSADCSCAFlags' -Tag 'Unit', 'Security', 'ADCS' {
     Context 'Risk level classification' {
 
         It 'ESC6Vulnerable = true should yield Critical risk' {
-            $riskLevel = if ($true) { 'Critical' } elseif ($false) { 'Unknown' } else { 'Compliant' }
+            $riskLevel = if ($true) { 'Critical' } elseif ($false) { 'Unknown' } else { 'Low' }
             $riskLevel | Should -Be 'Critical'
         }
 
-        It 'ESC6Vulnerable = false with valid EditFlags should yield Compliant' {
+        It 'ESC6Vulnerable = false with valid EditFlags should yield Low' {
             $esc6Vulnerable = $false
             $editFlagsInt   = 0x00000001
             $riskLevel = if ($esc6Vulnerable) { 'Critical' }
                          elseif ($null -eq $editFlagsInt) { 'Unknown' }
-                         else { 'Compliant' }
-            $riskLevel | Should -Be 'Compliant'
+                         else { 'Low' }
+            $riskLevel | Should -Be 'Low'
         }
 
         It 'Null EditFlags (registry inaccessible) should yield Unknown risk' {
@@ -82,7 +82,7 @@ Describe 'Test-DSADCSCAFlags' -Tag 'Unit', 'Security', 'ADCS' {
             $editFlagsInt   = $null
             $riskLevel = if ($esc6Vulnerable) { 'Critical' }
                          elseif ($null -eq $editFlagsInt) { 'Unknown' }
-                         else { 'Compliant' }
+                         else { 'Low' }
             $riskLevel | Should -Be 'Unknown'
         }
     }

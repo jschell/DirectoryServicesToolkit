@@ -109,7 +109,7 @@ Changelog:
 
             $riskLevel = if ($lmCompatInt -le 2) { 'Critical' }
                          elseif ($lmCompatInt -le 4) { 'Medium' }
-                         elseif ($lmCompatInt -eq 5) { 'Compliant' }
+                         elseif ($lmCompatInt -eq 5) { 'Low' }
                          else { 'Unknown' }
 
             $lmDescription = switch ($lmCompatInt)
@@ -142,7 +142,7 @@ Changelog:
                     NTLMv2ServerRequired   = $ntlmv2Server
                     Encryption128BitServer = $enc128Server
                     RiskLevel              = $riskLevel
-                    IsCompliant            = ($riskLevel -eq 'Compliant')
+                    IsCompliant            = ($riskLevel -eq 'Low')
                     ErrorMessage           = $errorMessage
                 }
             )

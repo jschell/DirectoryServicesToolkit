@@ -74,7 +74,7 @@ Changelog:
 
             $compositeRisk = if ($sig.RiskLevel -eq 'Critical' -or $cbRisk -eq 'Critical') { 'Critical' }
                              elseif ($sig.RiskLevel -eq 'Medium' -or $cbRisk -eq 'Medium') { 'Medium' }
-                             elseif ($fullyCompliant) { 'Compliant' }
+                             elseif ($fullyCompliant) { 'Low' }
                              else { 'Unknown' }
 
             [void]$results.Add(

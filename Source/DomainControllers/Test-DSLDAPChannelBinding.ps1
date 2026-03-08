@@ -104,7 +104,7 @@ Changelog:
             {
                 0       { 'Critical' }
                 1       { 'Medium' }
-                2       { 'Compliant' }
+                2       { 'Low' }
                 default { 'Unknown' }
             }
 
@@ -122,7 +122,7 @@ Changelog:
                     ChannelBindingValue  = $cbInt
                     Description          = $description
                     RiskLevel            = $riskLevel
-                    IsCompliant          = ($riskLevel -eq 'Compliant')
+                    IsCompliant          = ($riskLevel -eq 'Low')
                     ErrorMessage         = $errorMessage
                 }
             )

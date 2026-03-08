@@ -117,7 +117,7 @@ https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-signing
 
             $riskLevel = if ($requireInt -eq 1)
             {
-                'Compliant'
+                'Low'
             }
             elseif ($enableInt -eq 1)
             {
@@ -148,7 +148,7 @@ https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-signing
                     EnableSecuritySignature   = $enableInt
                     Description               = $description
                     RiskLevel                 = $riskLevel
-                    IsCompliant               = ($riskLevel -eq 'Compliant')
+                    IsCompliant               = ($riskLevel -eq 'Low')
                     ErrorMessage              = $errorMessage
                 }
             )
