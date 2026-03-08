@@ -86,15 +86,6 @@ https://learn.microsoft.com/en-us/troubleshoot/windows-server/group-policy/sysvo
 
         Write-Verbose "Checking SYSVOL/NETLOGON permissions on $($dcNames.Count) domain controller(s)"
 
-        $dangerousRights = @(
-            'FullControl'
-            'Modify'
-            [System.Security.AccessControl.FileSystemRights]::Write
-            [System.Security.AccessControl.FileSystemRights]::WriteData
-            [System.Security.AccessControl.FileSystemRights]::CreateFiles
-            [System.Security.AccessControl.FileSystemRights]::CreateDirectories
-        )
-
         $safeIdentityPatterns = @(
             'Administrators'
             'Domain Admins'

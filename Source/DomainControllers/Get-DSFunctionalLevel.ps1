@@ -111,13 +111,6 @@ https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/active-directory
         }
 
         # ── Forest Functional Level ──
-        # Forest root is read from the crossRef object for the schema partition
-        $forestDomain = $DomainName -replace '^[^.]+\.', ''   # heuristic: parent domain
-        $forestDN     = 'CN=Partitions,CN=Configuration,' + $domainDN
-
-        $fflFilter = "(objectClass=crossRef)(netBIOSName=*)"
-        $fflProps  = @('msDS-Behavior-Version', 'name')
-
         # Read the forest-wide DFL from the Configuration NC Partitions container
         $partitionLdapPath = "LDAP://CN=Partitions,CN=Configuration,$domainDN"
         $partitionFilter   = '(objectClass=crossRefContainer)'

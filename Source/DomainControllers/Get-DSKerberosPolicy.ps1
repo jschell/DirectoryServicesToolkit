@@ -93,7 +93,6 @@ https://learn.microsoft.com/en-us/windows-server/security/kerberos/preventing-ke
 
         Write-Verbose "Checking Kerberos encryption policy for domain: $DomainName"
 
-        $domainDN    = 'DC=' + ($DomainName -replace '\.', ',DC=')
         $kerbRegPath = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Kerberos\Parameters'
 
         # Encryption type bitmask constants
