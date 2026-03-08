@@ -75,6 +75,8 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Get-DSADCSAuthority` | Enumerates Enterprise CA servers with certificate expiry and web enrollment endpoint details |
 | `Test-DSADCSACL` | Reviews CA object ACLs for non-admin principals with ManageCA or ManageCertificates rights (ESC7) |
 | `Test-DSADCSCAFlags` | Reads `EditFlags` from each CA server's registry; flags `EDITF_ATTRIBUTESUBJECTALTNAME2` (ESC6 — all client-auth templates become ESC1-equivalent) |
+| `Test-DSADCSContainerACL` | Reviews ACLs on the PKI container hierarchy (root, NTAuth, AIA, CDP, Enrollment Services) for non-privileged write access (ESC5) |
+| `Test-DSADCSMappingEnforcement` | Checks `StrongCertificateBindingEnforcement` on each CA and `CT_FLAG_NO_SECURITY_EXTENSION` on templates (ESC9/ESC10) |
 | `Find-DSADCSWebEnrollment` | Detects HTTP (non-HTTPS) web enrollment endpoints vulnerable to NTLM relay (ESC8) |
 
 #### Credential Exposure & Replication
@@ -85,6 +87,14 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Find-DSDCSyncRights` | Identifies non-privileged principals with DS-Replication-Get-Changes-All on the domain NC root |
 | `Get-DSLAPSCoverage` | Assesses LAPS deployment coverage across all computer objects (legacy and Windows LAPS) |
 | `Test-DSLAPSPermissions` | Reviews computer object ACLs for overly-permissive LAPS password attribute read rights |
+
+#### ACL Abuse & Persistence
+
+| Function | Description |
+|---|---|
+| `Test-DSAdminSDHolderACL` | Enumerates non-privileged write ACEs on AdminSDHolder; identifies backdoors that SDProp propagates to all protected accounts every 60 minutes |
+| `Find-DSGPOPermissions` | Reviews GPO DACLs for non-privileged write access (GenericAll, WriteDacl, WriteProperty, CreateChild) |
+| `Find-DSApplicationOverPrivilege` | Detects Exchange and SCCM groups with legacy over-privilege on the domain object; checks domain NC root DACL for dangerous non-admin ACEs |
 
 ### Enumeration
 
@@ -139,14 +149,22 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Get-DSSysvolHealth` | Checks SYSVOL/NETLOGON share availability, SysvolReady registry flag, and DFSR replication state |
 | `Get-DSResponseTime` | Measures LDAP (389) and Global Catalog (3268) response latency across DCs |
 | `Get-OSLevelDomainController` | Returns OS version information for all DCs in the domain |
-| `Test-DSLDAPSigning` | Reads `ldap server integrity` from each DC's registry (0=Critical, 1=Medium, 2=Compliant) |
-| `Test-DSLDAPChannelBinding` | Reads `LdapEnforceChannelBinding` from each DC's registry (0=Critical, 1=Medium, 2=Compliant) |
+| `Get-DSFunctionalLevel` | Returns domain and forest functional levels; flags levels below 2016 (Medium) or pre-2012 (High) |
+| `Test-DSLDAPSigning` | Reads `ldap server integrity` from each DC's registry (0=Critical, 1=Medium, 2=Low) |
+| `Test-DSLDAPChannelBinding` | Reads `LdapEnforceChannelBinding` from each DC's registry (0=Critical, 1=Medium, 2=Low) |
 | `Test-DSLDAPSecurity` | Combined signing + channel binding wrapper with per-DC composite risk score |
 | `Get-DSNTLMPolicy` | Reads `LmCompatibilityLevel`, `NoLMHash`, and `NtlmMinSec` flags from each DC's registry |
 | `Find-DSNTLMRestrictions` | Scans SYSVOL GptTmpl.inf files for NTLM-related security option settings |
 | `Test-DSSMBSigning` | Reads `RequireSecuritySignature` and `EnableSecuritySignature` from each DC's registry; DCs with LDAP signing enforced but SMB signing not required remain relay-exploitable |
 | `Test-DSPrintSpooler` | Queries Print Spooler service state via CIM — Critical on DCs (MS-RPRN coercion surface) |
 | `Find-DSCoercionSurface` | Composites Print Spooler state with unconstrained delegation for a combined coercion risk score |
+| `Get-DSAuditPolicy` | Checks Windows Advanced Audit Policy subcategory settings on each DC via registry; flags missing Success or Failure categories (NIST AU-2/AU-12, CMMC 3.3.1/3.3.2) |
+| `Get-DSKerberosPolicy` | Checks krbtgt `msDS-SupportedEncryptionTypes` and per-DC registry policy; flags DES (High), RC4 (Medium), or unset/default (Medium — OS default includes RC4) |
+| `Test-DSWDigestAuth` | Reads `UseLogonCredential` from `HKLM\...\WDigest` per DC; Critical when WDigest is enabled (cleartext credentials in LSASS) |
+| `Test-DSCredentialProtection` | Checks `LocalAccountTokenFilterPolicy`, `DisableRestrictedAdmin`, and Credential Guard (`LsaCfgFlags`) per DC |
+| `Test-DSRemoteManagementSecurity` | Checks RDP NLA enforcement, SecurityLayer (TLS), MinEncryptionLevel, and WinRM `AllowUnencrypted` per DC |
+| `Test-DSCachedCredentialPolicy` | Reads `CachedLogonsCount` from `HKLM\...\Winlogon` per DC; DCs should use 0 (MSCACHE not stored) |
+| `Test-DSSysvolPermissions` | Reads NTFS ACLs on SYSVOL and NETLOGON UNC paths per DC; flags non-privileged write-equivalent ACEs |
 
 ### Reporting
 
@@ -155,6 +173,42 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Invoke-DSBaselineCapture` | Snapshots key security indicators to a timestamped JSON file |
 | `Compare-DSBaseline` | Diffs two baseline JSON files and returns Added/Removed/Modified per indicator |
 | `New-DSAssessmentReport` | Renders pipeline or hashtable input as an HTML or CSV report |
+
+---
+
+## Risk Levels
+
+Every function that surfaces a security finding includes a `RiskLevel` string property on its output objects, enabling consistent cross-function pipeline filtering:
+
+```powershell
+# Pull Critical and High findings from any function
+Find-DSKerberoastable | Where-Object { $_.RiskLevel -in 'Critical','High' }
+
+# Aggregate across multiple functions
+@(Find-DSKerberoastable; Find-DSDelegation; Find-DSInterestingACE) |
+    Where-Object { $_.RiskLevel -eq 'Critical' } |
+    Select-Object RiskLevel, SamAccountName, DistinguishedName
+```
+
+| Value | Meaning |
+|---|---|
+| `Critical` | Directly exploitable or immediate domain compromise path. Remediate within 24 hours. |
+| `High` | Significantly elevated attack surface. Requires prompt remediation. |
+| `Medium` | Elevated risk requiring additional attacker-controlled conditions. |
+| `Low` | Compliant or healthy state; no immediate action required. |
+| `Informational` | Present but not a vulnerability; provides assessment context. |
+| `Unknown` | Data could not be collected (connectivity failure, access denied). |
+
+For the complete per-function scoring logic, threshold rationale, and compliance control mapping against **NIST SP 800-53 Rev 5**, **NIST SP 800-207** (Zero Trust Architecture), and **CMMC Level 3** (NIST SP 800-172), see:
+
+**[`Docs/RiskLevel-Reference.md`](Docs/RiskLevel-Reference.md)**
+
+That document covers:
+- Condition-to-level tables for all 57 functions that emit `RiskLevel`
+- NIST 800-53 control identifiers per finding category (AC, IA, SC, CM, SI, AU, SA)
+- NIST 800-207 Zero Trust pillar classification (Identity, Device, Network, Application Workload, Data)
+- CMMC Level 3 practice mapping, including the 7 Level 3-specific practices from NIST 800-172
+- Compliance-filtered reporting examples for CMMC L2/L3 gap reports and ZTA pillar validation
 
 ---
 
