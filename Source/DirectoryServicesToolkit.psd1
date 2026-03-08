@@ -4,7 +4,7 @@
 # FunctionsToExport is kept current by `Invoke-Build Build`.
 
 @{
-    ModuleVersion = '0.3.0'
+    ModuleVersion = '0.4.0'
     GUID              = 'c4a3b2d1-e5f6-4789-a0bc-1d2e3f4a5b6c'
     Author            = 'J Schell'
     Description       = 'Active Directory security assessment and operational toolkit'
@@ -37,14 +37,19 @@
         'Find-DSBitlockerKey'
         'Find-DSDCSyncRights'
         'Find-DSDelegation'
+        'Find-DSGPOPermissions'
         'Find-DSGPPCredential'
         'Find-DSInterestingACE'
         'Find-DSKerberoastable'
+        'Find-DSApplicationOverPrivilege'
         'Get-DSADCSAuthority'
         'Get-DSLAPSCoverage'
         'New-KerberosTicketRequest'
         'Test-DSADCSACL'
         'Test-DSADCSCAFlags'
+        'Test-DSADCSContainerACL'
+        'Test-DSADCSMappingEnforcement'
+        'Test-DSAdminSDHolderACL'
         'Test-DSLAPSPermissions'
         'Test-IfxTPM'
 
@@ -65,16 +70,24 @@
         # DomainControllers
         'Find-DSCoercionSurface'
         'Find-DSNTLMRestrictions'
+        'Get-DSAuditPolicy'
+        'Get-DSFunctionalLevel'
+        'Get-DSKerberosPolicy'
         'Get-DSNTLMPolicy'
         'Get-DSReplicationStatus'
         'Get-DSResponseTime'
         'Get-DSSysvolHealth'
         'Get-OSLevelDomainController'
+        'Test-DSCredentialProtection'
+        'Test-DSCachedCredentialPolicy'
         'Test-DSLDAPChannelBinding'
         'Test-DSLDAPSecurity'
         'Test-DSLDAPSigning'
         'Test-DSPrintSpooler'
+        'Test-DSRemoteManagementSecurity'
         'Test-DSSMBSigning'
+        'Test-DSSysvolPermissions'
+        'Test-DSWDigestAuth'
 
         # DNS
         'Find-DSADIDNSRecord'
