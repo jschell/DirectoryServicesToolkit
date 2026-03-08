@@ -139,8 +139,8 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Get-DSSysvolHealth` | Checks SYSVOL/NETLOGON share availability, SysvolReady registry flag, and DFSR replication state |
 | `Get-DSResponseTime` | Measures LDAP (389) and Global Catalog (3268) response latency across DCs |
 | `Get-OSLevelDomainController` | Returns OS version information for all DCs in the domain |
-| `Test-DSLDAPSigning` | Reads `ldap server integrity` from each DC's registry (0=Critical, 1=Medium, 2=Compliant) |
-| `Test-DSLDAPChannelBinding` | Reads `LdapEnforceChannelBinding` from each DC's registry (0=Critical, 1=Medium, 2=Compliant) |
+| `Test-DSLDAPSigning` | Reads `ldap server integrity` from each DC's registry (0=Critical, 1=Medium, 2=Low) |
+| `Test-DSLDAPChannelBinding` | Reads `LdapEnforceChannelBinding` from each DC's registry (0=Critical, 1=Medium, 2=Low) |
 | `Test-DSLDAPSecurity` | Combined signing + channel binding wrapper with per-DC composite risk score |
 | `Get-DSNTLMPolicy` | Reads `LmCompatibilityLevel`, `NoLMHash`, and `NtlmMinSec` flags from each DC's registry |
 | `Find-DSNTLMRestrictions` | Scans SYSVOL GptTmpl.inf files for NTLM-related security option settings |
@@ -155,6 +155,42 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Invoke-DSBaselineCapture` | Snapshots key security indicators to a timestamped JSON file |
 | `Compare-DSBaseline` | Diffs two baseline JSON files and returns Added/Removed/Modified per indicator |
 | `New-DSAssessmentReport` | Renders pipeline or hashtable input as an HTML or CSV report |
+
+---
+
+## Risk Levels
+
+Every function that surfaces a security finding includes a `RiskLevel` string property on its output objects, enabling consistent cross-function pipeline filtering:
+
+```powershell
+# Pull Critical and High findings from any function
+Find-DSKerberoastable | Where-Object { $_.RiskLevel -in 'Critical','High' }
+
+# Aggregate across multiple functions
+@(Find-DSKerberoastable; Find-DSDelegation; Find-DSInterestingACE) |
+    Where-Object { $_.RiskLevel -eq 'Critical' } |
+    Select-Object RiskLevel, SamAccountName, DistinguishedName
+```
+
+| Value | Meaning |
+|---|---|
+| `Critical` | Directly exploitable or immediate domain compromise path. Remediate within 24 hours. |
+| `High` | Significantly elevated attack surface. Requires prompt remediation. |
+| `Medium` | Elevated risk requiring additional attacker-controlled conditions. |
+| `Low` | Compliant or healthy state; no immediate action required. |
+| `Informational` | Present but not a vulnerability; provides assessment context. |
+| `Unknown` | Data could not be collected (connectivity failure, access denied). |
+
+For the complete per-function scoring logic, threshold rationale, and compliance control mapping against **NIST SP 800-53 Rev 5**, **NIST SP 800-207** (Zero Trust Architecture), and **CMMC Level 3** (NIST SP 800-172), see:
+
+**[`Docs/RiskLevel-Reference.md`](Docs/RiskLevel-Reference.md)**
+
+That document covers:
+- Condition-to-level tables for all 44 functions that emit `RiskLevel`
+- NIST 800-53 control identifiers per finding category (AC, IA, SC, CM, SI, AU, SA)
+- NIST 800-207 Zero Trust pillar classification (Identity, Device, Network, Application Workload, Data)
+- CMMC Level 3 practice mapping, including the 7 Level 3-specific practices from NIST 800-172
+- Compliance-filtered reporting examples for CMMC L2/L3 gap reports and ZTA pillar validation
 
 ---
 
