@@ -4,7 +4,7 @@
 # FunctionsToExport is kept current by `Invoke-Build Build`.
 
 @{
-    ModuleVersion = '0.5.0'
+    ModuleVersion = '0.5.1'
     GUID              = 'c4a3b2d1-e5f6-4789-a0bc-1d2e3f4a5b6c'
     Author            = 'J Schell'
     Description       = 'Active Directory security assessment and operational toolkit'
