@@ -83,9 +83,8 @@ https://support.microsoft.com/en-us/topic/kb5014754-certificate-based-authentica
         $domainDN = 'DC=' + ($DomainName -replace '\.', ',DC=')
         $configNC = "CN=Configuration,$domainDN"
 
-        $kdcRegistryPath        = 'SYSTEM\CurrentControlSet\Services\Kdc'
-        $noSecurityExtFlag      = 0x00080000
-        $noSecurityExtFlagName  = 'CT_FLAG_NO_SECURITY_EXTENSION'
+        $kdcRegistryPath   = 'SYSTEM\CurrentControlSet\Services\Kdc'
+        $noSecurityExtFlag = 0x00080000
 
         $results = New-Object System.Collections.ArrayList
     }
