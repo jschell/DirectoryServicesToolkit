@@ -38,8 +38,8 @@ Import-Module DirectoryServicesToolkit
 git clone https://github.com/jschell/DirectoryServicesToolkit.git
 cd DirectoryServicesToolkit
 
-# Development — import directly from source (no build step needed)
-Import-Module ./Source/DirectoryServicesToolkit.psm1 -Force
+# Development — import via the manifest (reads correct ModuleVersion)
+Import-Module ./Source/DirectoryServicesToolkit.psd1 -Force
 
 # Distribution — concatenate into a single .psm1 and generate .psd1
 Invoke-Build Build
@@ -64,6 +64,7 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Find-DSInterestingACE` | Identifies non-default ACEs on high-value objects (GenericAll, WriteDacl, etc.) |
 | `Find-DSBitlockerKey` | Enumerates BitLocker recovery key objects stored in AD |
 | `ConvertFrom-TrustAttributeValue` | Decodes a raw `trustAttributes` integer to a human-readable flag list |
+| `New-KerberosTicketRequest` | Requests a Kerberos service ticket for a given SPN; stages the encrypted ticket in memory for offline cracking |
 
 #### AD CS / PKI
 
@@ -78,6 +79,12 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Test-DSADCSContainerACL` | Reviews ACLs on the PKI container hierarchy (root, NTAuth, AIA, CDP, Enrollment Services) for non-privileged write access (ESC5) |
 | `Test-DSADCSMappingEnforcement` | Checks `StrongCertificateBindingEnforcement` on each CA and `CT_FLAG_NO_SECURITY_EXTENSION` on templates (ESC9/ESC10) |
 | `Find-DSADCSWebEnrollment` | Detects HTTP (non-HTTPS) web enrollment endpoints vulnerable to NTLM relay (ESC8) |
+
+#### TPM & Firmware
+
+| Function | Description |
+|---|---|
+| `Test-IfxTPM` | Detects Infineon TPM chips with firmware vulnerable to CVE-2017-15361 (ROCA — allows RSA private key reconstruction from the public key, compromising any certificate or BitLocker key backed by the TPM) |
 
 #### Credential Exposure & Replication
 
@@ -125,6 +132,7 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Find-DSStalePrivilegedAccounts` | Finds disabled accounts that still hold transitive membership in Tier 0 groups (Domain Admins, Enterprise Admins, Schema Admins) |
 | `Find-DSWeakEncryptionAccounts` | Detects `ENCRYPTED_TEXT_PASSWORD_ALLOWED` (reversible encryption, plaintext-equivalent) and `USE_DES_KEY_ONLY` (broken DES Kerberos) UAC flags |
 | `Get-DSProtectedUsersGaps` | Flags privileged accounts not in Protected Users; detects SPN/delegation incompatibilities |
+| `Get-LastLoginInDomain` | Queries the non-replicated `lastLogon` attribute across all specified DCs and returns the highest (most recent) value per user |
 
 ### Trusts
 
@@ -173,6 +181,13 @@ The build step concatenates all function files into a single `Output/DirectorySe
 | `Invoke-DSBaselineCapture` | Snapshots key security indicators to a timestamped JSON file |
 | `Compare-DSBaseline` | Diffs two baseline JSON files and returns Added/Removed/Modified per indicator |
 | `New-DSAssessmentReport` | Renders pipeline or hashtable input as an HTML or CSV report |
+
+### Utilities
+
+| Function | Description |
+|---|---|
+| `ConvertTo-Guid` | Generates a deterministic GUID from a string via MD5 hash; used for DSC node enrollment identifiers where a stable per-machine GUID is required |
+| `Get-TPMDetail` | Returns TPM manufacturer, vendor ID, vendor firmware version, and specification version per computer via CIM |
 
 ---
 
